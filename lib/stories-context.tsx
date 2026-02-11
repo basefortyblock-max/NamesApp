@@ -114,7 +114,7 @@ export function StoriesProvider({ children }: { children: ReactNode }) {
           comments: [],
           shares: 0,
           liked: false,
-          price: 0.01,
+          price: 0.7,
           createdAt: new Date().toISOString(),
         },
         ...prev,

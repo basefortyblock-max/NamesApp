@@ -38,7 +38,7 @@ const WHY_REASONS = [
     icon: Users,
     title: "Connect With Others",
     description:
-      "Discover the philosophy behind other usernames. Follow creators across platforms. Build meaningful connections through shared stories.",
+      "Discover the philosophy behind other usernames. Build meaningful connections through shared stories.",
   },
 ]
 
@@ -69,7 +69,7 @@ const HOW_STEPS = [
     icon: DollarSign,
     title: "Earn USDC",
     description:
-      "Your story starts at 0.01 USDC. When others appreciate and value your philosophy, the price increases. No gas fees, powered by Gasless Paymaster.",
+      "Your story starts at 0.7 USDC. When others appreciate and value your philosophy, the price increases. No gas fees, enjoy it.",
   },
 ]
 
@@ -77,11 +77,11 @@ const KEY_FEATURES = [
   {
     icon: Zap,
     title: "Gasless Transactions",
-    description: "No gas fee for any transaction. Powered by Gasless Paymaster.",
+    description: "No gas fee for any transaction. Enjoy it.",
   },
   {
     icon: DollarSign,
-    title: "Minimum 0.01 USDC",
+    title: "Minimum 0.7 USDC",
     description: "The minimum price is the current story price. It only goes up.",
   },
   {

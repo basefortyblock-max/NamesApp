@@ -207,7 +207,7 @@ export default function WritePage() {
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
             <div className="text-xs leading-relaxed text-muted-foreground">
               <p>Your story starts at <span className="font-semibold text-foreground">0.01 USDC</span>. The more users appreciate your story, the higher the price grows.</p>
-              <p className="mt-1">No gas fees. Gasless Paymaster handles all transactions.</p>
+              <p className="mt-1">No gas fees. Names app handles all transactions.</p>
             </div>
           </div>
 

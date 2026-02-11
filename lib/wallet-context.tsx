@@ -1,29 +1,17 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
 
 interface WalletState {
   isConnected: boolean
   address: string | null
   basename: string | null
   balance: number
-  connect: () => void
+  connect: () => Promise<void>
   disconnect: () => void
 }
 
 const WalletContext = createContext<WalletState | null>(null)
-
-const MOCK_ADDRESSES = [
-  "0x1a2B...9cDe",
-  "0x3f4A...7bCd",
-  "0x5e6D...2aFb",
-]
-
-const MOCK_BASENAMES = [
-  "aurora.base.eth",
-  "cosmic.base.eth",
-  "phoenix.base.eth",
-]
 
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false)
@@ -31,12 +19,28 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [basename, setBasename] = useState<string | null>(null)
   const [balance, setBalance] = useState(0)
 
-  const connect = useCallback(() => {
-    const idx = Math.floor(Math.random() * MOCK_ADDRESSES.length)
-    setAddress(MOCK_ADDRESSES[idx])
-    setBasename(MOCK_BASENAMES[idx])
-    setBalance(12.45)
-    setIsConnected(true)
+  const connect = useCallback(async () => {
+    try {
+      // Check if window.ethereum exists
+      if (typeof window !== "undefined" && window.ethereum) {
+        const accounts = await window.ethereum.request({
+          method: "eth_requestAccounts",
+        })
+        
+        if (accounts && accounts.length > 0) {
+          const addr = accounts[0]
+          setAddress(addr)
+          setBasename(`${addr.slice(0, 6)}...${addr.slice(-4)}.base.eth`)
+          setBalance(0) // Fetch real balance via provider
+          setIsConnected(true)
+        }
+      } else {
+        // Fallback: Open Coinbase Wallet or show error
+        alert("Please install a wallet extension or use Coinbase Wallet")
+      }
+    } catch (error) {
+      console.error("Failed to connect wallet:", error)
+    }
   }, [])
 
   const disconnect = useCallback(() => {
