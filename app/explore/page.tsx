@@ -17,16 +17,9 @@ interface ExploreUser {
   isFollowing: boolean
 }
 
-const EXPLORE_USERS: ExploreUser[] = [
-  { username: "SatoshiDreamer", basename: "satoshi.base.eth", platform: "Base", stories: 3, followers: 245, totalValue: 42.50, isFollowing: false },
-  { username: "LunaMoonrise", basename: "luna.base.eth", platform: "Twitter", stories: 5, followers: 512, totalValue: 89.25, isFollowing: false },
-  { username: "PhoenixEth", basename: "phoenix.base.eth", platform: "Base", stories: 2, followers: 178, totalValue: 120.00, isFollowing: false },
-  { username: "ZenBuilder", basename: "zen.base.eth", platform: "Instagram", stories: 7, followers: 334, totalValue: 55.75, isFollowing: false },
-  { username: "CryptoNomad", basename: "nomad.base.eth", platform: "TikTok", stories: 4, followers: 892, totalValue: 210.30, isFollowing: false },
-  { username: "PixelArtisan", basename: "pixel.base.eth", platform: "Twitter", stories: 6, followers: 456, totalValue: 67.80, isFollowing: false },
-]
-
-const PLATFORM_FILTERS = ["All", "Base", "Twitter", "Instagram", "TikTok", "Facebook"]
+const EXPLORE_USERS: ExploreUser[] = []
+  
+  const PLATFORM_FILTERS = ["All", "Base", "Twitter", "Instagram", "TikTok", "Facebook"]
 
 export default function ExplorePage() {
   const { isConnected } = useWallet()

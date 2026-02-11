@@ -33,72 +33,8 @@ interface StoriesState {
   valueStory: (id: string, amount: number) => void
 }
 
-const INITIAL_STORIES: Story[] = [
-  {
-    id: "1",
-    username: "SatoshiDreamer",
-    platform: "Base",
-    basename: "satoshi.base.eth",
-    address: "0x7a8B...3dEf",
-    story: "I chose SatoshiDreamer because Satoshi Nakamoto showed us that one person's vision can reshape the world. This name reminds me every day that dreams, no matter how audacious, are worth pursuing. In the world of blockchain, we are all dreamers building a decentralized future.",
-    price: 2.50,
-    likes: 47,
-    comments: [
-      { id: "c1", author: "CryptoSage", basename: "sage.base.eth", text: "Beautiful philosophy! The dreamer spirit lives on.", createdAt: "2026-02-10T10:00:00Z" }
-    ],
-    shares: 12,
-    liked: false,
-    createdAt: "2026-02-08T14:30:00Z",
-  },
-  {
-    id: "2",
-    username: "LunaMoonrise",
-    platform: "Twitter",
-    basename: "luna.base.eth",
-    address: "0x2b3C...8fGh",
-    story: "Luna means moon in many languages. My grandmother always told me the moon watches over those who dare to wander at night. I chose LunaMoonrise because every sunrise after a long night is a reminder that light always returns. It symbolizes hope, resilience, and the quiet strength we carry within.",
-    price: 5.25,
-    likes: 89,
-    comments: [
-      { id: "c2", author: "StarGazer", basename: "star.base.eth", text: "Your grandmother sounds incredibly wise.", createdAt: "2026-02-09T08:15:00Z" },
-      { id: "c3", author: "NightOwl", basename: "owl.base.eth", text: "The moon metaphor is perfect. Love this!", createdAt: "2026-02-09T12:30:00Z" },
-    ],
-    shares: 23,
-    liked: false,
-    createdAt: "2026-02-07T09:15:00Z",
-  },
-  {
-    id: "3",
-    username: "PhoenixEth",
-    platform: "Base",
-    basename: "phoenix.base.eth",
-    address: "0x4d5E...1iJk",
-    story: "The Phoenix rises from its own ashes. I chose this name after losing everything in the 2022 bear market and rebuilding from scratch. My name is my promise: no matter how many times I fall, I will rise again. Every transaction I make on Base is a testament to that resilience.",
-    price: 8.00,
-    likes: 134,
-    comments: [
-      { id: "c4", author: "DiamondHands", basename: "diamond.base.eth", text: "This resonates deeply. We are all phoenixes.", createdAt: "2026-02-10T16:45:00Z" },
-    ],
-    shares: 45,
-    liked: false,
-    createdAt: "2026-02-06T18:45:00Z",
-  },
-  {
-    id: "4",
-    username: "ZenBuilder",
-    platform: "Instagram",
-    basename: "zen.base.eth",
-    address: "0x6f7G...4lMn",
-    story: "Zen is the art of seeing into the nature of one's own being. As a developer, I build with intention and mindfulness. Every line of code, every smart contract, every dApp is a meditation. ZenBuilder reflects my belief that the best technology comes from a place of calm clarity, not chaos.",
-    price: 3.75,
-    likes: 62,
-    comments: [],
-    shares: 8,
-    liked: false,
-    createdAt: "2026-02-05T11:20:00Z",
-  },
-]
-
+const INITIAL_STORIES: Story[] = []
+  
 const StoriesContext = createContext<StoriesState | null>(null)
 
 export function StoriesProvider({ children }: { children: ReactNode }) {
