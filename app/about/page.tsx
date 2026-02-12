@@ -69,7 +69,7 @@ const HOW_STEPS = [
     icon: DollarSign,
     title: "Earn USDC",
     description:
-      "Your story starts at 0.7 USDC. When others appreciate and value your philosophy, the price increases. No gas fees, enjoy it.",
+      "Your story starts at 0.7 USDC. When others appreciate and value your philosophy, the price increases.",
   },
 ]
 
@@ -109,7 +109,7 @@ export default function AboutPage() {
         <h1 className="text-2xl font-bold tracking-tight text-foreground text-balance">
           The Charismatic Philosophy Behind Your Username
         </h1>
-        <p className="mx-auto mt-3 max-w-md text-sm leading-relaxed text-muted-foreground text-pretty">
+        <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted-foreground text-pretty">
           App Names represent the philosophy of your username, whether it's Twitter, Base, Instagram,
           TikTok, Facebook, a project name, or any name you choose for any blockchain platform.
         </p>
@@ -118,7 +118,7 @@ export default function AboutPage() {
       {/* Why Names */}
       <section className="px-4 py-6">
         <h2 className="text-lg font-bold text-foreground">Why Names?</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 text-base text-muted-foreground">
           Tell the world why you chose that name. Is it historical, brings good luck, brings
           blessings, health, or many other reasons?
         </p>
@@ -129,8 +129,8 @@ export default function AboutPage() {
                 <reason.icon className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h3 className="text-sm font-semibold text-foreground">{reason.title}</h3>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{reason.description}</p>
+                <h3 className="text-base font-semibold text-foreground">{reason.title}</h3>
+                <p className="mt-1 text-base leading-relaxed text-muted-foreground">{reason.description}</p>
               </div>
             </div>
           ))}
@@ -140,14 +140,14 @@ export default function AboutPage() {
       {/* How It Works */}
       <section className="px-4 py-6">
         <h2 className="text-lg font-bold text-foreground">How It Works</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 text-base text-muted-foreground">
           Four simple steps to share and earn from your name philosophy.
         </p>
         <div className="mt-5 flex flex-col gap-5">
           {HOW_STEPS.map((item) => (
             <div key={item.step} className="flex gap-4">
               <div className="flex flex-col items-center">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-base font-bold text-primary-foreground">
                   {item.step}
                 </div>
                 {item.step !== "04" && <div className="mt-1 h-full w-px bg-border" />}
@@ -155,9 +155,9 @@ export default function AboutPage() {
               <div className="pb-4">
                 <div className="flex items-center gap-2">
                   <item.icon className="h-4 w-4 text-primary" />
-                  <h3 className="text-sm font-semibold text-foreground">{item.title}</h3>
+                  <h3 className="text-base font-semibold text-foreground">{item.title}</h3>
                 </div>
-                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{item.description}</p>
+                <p className="mt-1 text-base leading-relaxed text-muted-foreground">{item.description}</p>
               </div>
             </div>
           ))}
@@ -171,8 +171,8 @@ export default function AboutPage() {
           {KEY_FEATURES.map((feature) => (
             <div key={feature.title} className="rounded-xl border border-border bg-card p-3">
               <feature.icon className="h-5 w-5 text-primary" />
-              <h3 className="mt-3 text-xs font-semibold text-foreground">{feature.title}</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{feature.description}</p>
+              <h3 className="mt-3 text-base font-semibold text-foreground">{feature.title}</h3>
+              <p className="mt-2 text-base leading-relaxed text-muted-foreground">{feature.description}</p>
             </div>
           ))}
         </div>
@@ -182,13 +182,13 @@ export default function AboutPage() {
       <section className="px-4 py-8 text-center">
         <div className="rounded-xl bg-primary p-6 text-primary-foreground">
           <h2 className="text-lg font-bold">Ready to Share Your Story?</h2>
-          <p className="mt-1 text-sm text-primary-foreground/80">
+          <p className="mt-1 text-base text-primary-foreground/80">
             Connect your wallet and start earning from your name philosophy.
           </p>
           {isConnected ? (
             <Link
               href="/write"
-              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary-foreground px-6 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary-foreground/90"
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary-foreground px-6 py-2.5 text-base font-semibold text-primary transition-colors hover:bg-primary-foreground/90"
             >
               Write Your Story
               <ArrowRight className="h-4 w-4" />
@@ -196,7 +196,7 @@ export default function AboutPage() {
           ) : (
             <button
               onClick={connect}
-              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary-foreground px-6 py-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary-foreground/90"
+              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary-foreground px-6 py-2.5 text-base font-semibold text-primary transition-colors hover:bg-primary-foreground/90"
             >
               Connect Wallet
               <ArrowRight className="h-4 w-4" />

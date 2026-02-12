@@ -1,13 +1,14 @@
 "use client"
 
-import { useWallet } from "@/lib/wallet-context"
+import { useAccount } from "wagmi"
 import { useStories } from "@/lib/stories-context"
 import { StoryCard } from "@/components/story-card"
 import { BalanceCard } from "@/components/balance-card"
-import { Wallet, Sparkles } from "lucide-react"
+import { Sparkles } from "lucide-react"
+import { ConnectWallet } from "@coinbase/onchainkit/wallet"
 
 export default function HomePage() {
-  const { isConnected, connect } = useWallet()
+  const { isConnected } = useAccount()
   const { stories } = useStories()
 
   return (
@@ -18,19 +19,15 @@ export default function HomePage() {
           <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
             <Sparkles className="h-7 w-7 text-primary" />
           </div>
-          <h1 className="text-2xl font-bold tracking-tight text-foreground text-balance">
-            The Philosophy Behind Your Username
+          <h1 className="text-3xl font-bold tracking-tight text-foreground text-balance">
+            The Charismatic Philosophy Behind Your Username
           </h1>
-          <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground text-pretty">
+          <p className="mx-auto mt-2 max-w-sm text-base leading-relaxed text-muted-foreground text-pretty">
             Share why you chose your name. Earn USDC when others value your story. Connect your wallet to get started.
           </p>
-          <button
-            onClick={connect}
-            className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            <Wallet className="h-4 w-4" />
-            Connect Wallet
-          </button>
+          <div className="mt-5 inline-flex">
+            <ConnectWallet />
+          </div>
         </div>
       )}
 

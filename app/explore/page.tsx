@@ -52,7 +52,7 @@ export default function ExplorePage() {
     <div className="mx-auto max-w-2xl">
       <div className="px-4 py-4">
         <h1 className="text-xl font-bold text-foreground">Explore</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 text-base text-muted-foreground">
           Discover names and the stories behind them.
         </p>
       </div>
@@ -66,7 +66,7 @@ export default function ExplorePage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search usernames or basenames..."
-            className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            className="flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
           />
         </div>
       </div>
@@ -76,7 +76,7 @@ export default function ExplorePage() {
         <button
           onClick={() => setActiveTab("users")}
           className={cn(
-            "flex-1 border-b-2 pb-2.5 text-sm font-medium transition-colors",
+            "flex-1 border-b-2 pb-2.5 text-base font-medium transition-colors",
             activeTab === "users"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
@@ -87,7 +87,7 @@ export default function ExplorePage() {
         <button
           onClick={() => setActiveTab("trending")}
           className={cn(
-            "flex-1 border-b-2 pb-2.5 text-sm font-medium transition-colors",
+            "flex-1 border-b-2 pb-2.5 text-base font-medium transition-colors",
             activeTab === "trending"
               ? "border-primary text-primary"
               : "border-transparent text-muted-foreground hover:text-foreground"
@@ -109,7 +109,7 @@ export default function ExplorePage() {
                 key={p}
                 onClick={() => setSelectedPlatform(p)}
                 className={cn(
-                  "shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                  "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
                   selectedPlatform === p
                     ? "border-primary bg-primary/10 text-primary"
                     : "border-border bg-card text-muted-foreground hover:border-primary/40"
@@ -129,18 +129,18 @@ export default function ExplorePage() {
               >
                 <div className="flex items-center gap-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15">
-                    <span className="text-sm font-bold text-primary">
+                    <span className="text-base font-bold text-primary">
                       {user.username.charAt(0).toUpperCase()}
                     </span>
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-foreground">{user.username}</span>
+                      <span className="text-base font-semibold text-foreground">{user.username}</span>
                       <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground">
                         {user.platform}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground">{user.basename}</p>
+                    <p className="text-sm text-muted-foreground">{user.basename}</p>
                     <div className="mt-0.5 flex items-center gap-3 text-[10px] text-muted-foreground">
                       <span>{user.stories} stories</span>
                       <span>{user.followers} followers</span>
@@ -153,7 +153,7 @@ export default function ExplorePage() {
                   <button
                     onClick={() => toggleFollow(user.username)}
                     className={cn(
-                      "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors",
+                      "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
                       user.isFollowing
                         ? "bg-secondary text-secondary-foreground"
                         : "bg-primary text-primary-foreground hover:bg-primary/90"
@@ -177,7 +177,7 @@ export default function ExplorePage() {
 
             {filteredUsers.length === 0 && (
               <div className="px-4 py-12 text-center">
-                <p className="text-sm text-muted-foreground">No users found matching your search.</p>
+                <p className="text-base text-muted-foreground">No users found matching your search.</p>
               </div>
             )}
           </div>

@@ -33,12 +33,12 @@ export default function WritePage() {
           <Wallet className="h-7 w-7 text-primary" />
         </div>
         <h1 className="text-xl font-bold text-foreground">Connect Your Wallet</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
+        <p className="mt-2 text-base text-muted-foreground">
           You need to connect your wallet to share your name philosophy.
         </p>
         <button
           onClick={connect}
-          className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
         >
           <Wallet className="h-4 w-4" />
           Connect Wallet
@@ -76,7 +76,7 @@ export default function WritePage() {
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
       <h1 className="text-xl font-bold text-foreground">Share Your Name Philosophy</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
+      <p className="mt-1 text-base text-muted-foreground">
         Tell the world the charismatic story behind your username.
       </p>
 
@@ -108,7 +108,7 @@ export default function WritePage() {
       {step === "input" && (
         <div className="mt-6 flex flex-col gap-4">
           <div>
-            <label htmlFor="username" className="mb-1.5 block text-sm font-medium text-foreground">
+            <label htmlFor="username" className="mb-1.5 block text-base font-medium text-foreground">
               Your Username
             </label>
             <input
@@ -117,7 +117,7 @@ export default function WritePage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               placeholder="e.g. SatoshiDreamer"
-              className="w-full rounded-lg border border-input bg-card px-3 py-2.5 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
+              className="w-full rounded-lg border border-input bg-card px-3 py-2.5 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
             />
             <p className="mt-1 text-xs text-muted-foreground">
               Type the username you want to share the philosophy about.
@@ -125,7 +125,7 @@ export default function WritePage() {
           </div>
 
           <div>
-            <label htmlFor="platform" className="mb-1.5 block text-sm font-medium text-foreground">
+            <label htmlFor="platform" className="mb-1.5 block text-base font-medium text-foreground">
               Platform
             </label>
             <div className="flex flex-wrap gap-2">
@@ -133,7 +133,7 @@ export default function WritePage() {
                 <button
                   key={p}
                   onClick={() => setPlatform(p)}
-                  className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`rounded-full border px-3 py-1.5 text-sm font-medium transition-colors ${
                     platform === p
                       ? "border-primary bg-primary/10 text-primary"
                       : "border-border bg-card text-muted-foreground hover:border-primary/40"
@@ -148,7 +148,7 @@ export default function WritePage() {
           <button
             onClick={handleVerify}
             disabled={!username.trim()}
-            className="mt-2 w-full rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
+            className="mt-2 w-full rounded-lg bg-primary py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
           >
             Continue
           </button>
@@ -161,12 +161,12 @@ export default function WritePage() {
           {!isVerified ? (
             <>
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-              <p className="text-sm text-muted-foreground">Verifying Base profile for <span className="font-semibold text-foreground">{username}</span>...</p>
+              <p className="text-base text-muted-foreground">Verifying Base profile for <span className="font-semibold text-foreground">{username}</span>...</p>
             </>
           ) : (
             <>
               <CheckCircle2 className="h-10 w-10 text-primary" />
-              <p className="text-sm text-foreground">Profile verified. Redirecting to story editor...</p>
+              <p className="text-base text-foreground">Profile verified. Redirecting to story editor...</p>
             </>
           )}
         </div>
@@ -178,13 +178,13 @@ export default function WritePage() {
           <div className="flex items-center gap-3 rounded-lg bg-secondary/70 px-3 py-2.5">
             <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
             <div>
-              <p className="text-sm font-medium text-foreground">{username}</p>
-              <p className="text-xs text-muted-foreground">{platform} · {basename}</p>
+              <p className="text-base font-medium text-foreground">{username}</p>
+              <p className="text-sm text-muted-foreground">{platform} · {basename}</p>
             </div>
           </div>
 
           <div>
-            <label htmlFor="story" className="mb-1.5 block text-sm font-medium text-foreground">
+            <label htmlFor="story" className="mb-1.5 block text-base font-medium text-foreground">
               Your Name Philosophy
             </label>
             <textarea
@@ -193,20 +193,20 @@ export default function WritePage() {
               onChange={(e) => setStory(e.target.value)}
               placeholder="Tell the world why you chose this name. Is it historical? Does it bring good luck, blessings, health? What is the charismatic philosophy behind it?"
               rows={8}
-              className="w-full resize-none rounded-lg border border-input bg-card px-3 py-2.5 text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
+              className="w-full resize-none rounded-lg border border-input bg-card px-3 py-2.5 text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
             />
             <div className="mt-1 flex items-center justify-between">
-              <p className="text-xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 Write in any language you prefer.
               </p>
-              <p className="text-xs text-muted-foreground">{story.length} chars</p>
+              <p className="text-sm text-muted-foreground">{story.length} chars</p>
             </div>
           </div>
 
           <div className="flex items-start gap-2 rounded-lg border border-border bg-accent/40 px-3 py-2.5">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <div className="text-xs leading-relaxed text-muted-foreground">
-              <p>Your story starts at <span className="font-semibold text-foreground">0.01 USDC</span>. The more users appreciate your story, the higher the price grows.</p>
+            <div className="text-sm leading-relaxed text-muted-foreground">
+              <p>Your story starts at <span className="font-semibold text-foreground">0.7 USDC</span>. The more users appreciate your story, the higher the price grows.</p>
               <p className="mt-1">No gas fees. Names app handles all transactions.</p>
             </div>
           </div>
@@ -214,7 +214,7 @@ export default function WritePage() {
           <button
             onClick={handlePublish}
             disabled={!story.trim()}
-            className="w-full rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
+            className="w-full rounded-lg bg-primary py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
           >
             Publish Philosophy
           </button>
@@ -227,15 +227,15 @@ export default function WritePage() {
           <div className="rounded-xl border border-border bg-card p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15">
-                <span className="text-sm font-bold text-primary">{username.charAt(0).toUpperCase()}</span>
+                <span className="text-base font-bold text-primary">{username.charAt(0).toUpperCase()}</span>
               </div>
               <div>
-                <p className="text-sm font-semibold text-foreground">{username}</p>
-                <p className="text-xs text-muted-foreground">{platform} · {basename}</p>
+                <p className="text-base font-semibold text-foreground">{username}</p>
+                <p className="text-sm text-muted-foreground">{platform} · {basename}</p>
               </div>
             </div>
-            <p className="mt-3 text-sm leading-relaxed text-foreground">{story}</p>
-            <div className="mt-3 flex items-center gap-1.5 text-xs text-primary">
+            <p className="mt-3 text-base leading-relaxed text-foreground">{story}</p>
+            <div className="mt-3 flex items-center gap-1.5 text-sm text-primary">
               <span className="font-semibold">Starting Price: 0.01 USDC</span>
             </div>
           </div>
@@ -247,13 +247,13 @@ export default function WritePage() {
           <div className="flex gap-3">
             <button
               onClick={() => setStep("write")}
-              className="flex-1 rounded-lg border border-border bg-card py-3 text-sm font-semibold text-foreground transition-colors hover:bg-secondary"
+              className="flex-1 rounded-lg border border-border bg-card py-3 text-base font-semibold text-foreground transition-colors hover:bg-secondary"
             >
               Edit
             </button>
             <button
               onClick={handleConfirmPublish}
-              className="flex-1 rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+              className="flex-1 rounded-lg bg-primary py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
             >
               Confirm & Publish
             </button>
