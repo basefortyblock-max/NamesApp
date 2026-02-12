@@ -122,4 +122,11 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* OnchainKit Theme Override */
+  [data-ock-theme='default-light'],
+  [data-ock-theme='default-dark'] {
+    --ock-font-family: 'Geist', 'Geist Fallback', sans-serif;
+    --ock-radius-default: 0.75rem;
+  }
 }

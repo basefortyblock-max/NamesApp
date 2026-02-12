@@ -4,7 +4,8 @@ import { useState } from "react"
 import { Heart, MessageCircle, Share2, DollarSign, Send } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useStories, type Story } from "@/lib/stories-context"
-import { useWallet } from "@/lib/wallet-context"
+import { useAccount } from "wagmi"
+import { Name } from "@coinbase/onchainkit/identity"
 
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime()
@@ -18,17 +19,21 @@ function timeAgo(dateStr: string) {
 
 export function StoryCard({ story }: { story: Story }) {
   const { toggleLike, addComment, valueStory } = useStories()
-  const { isConnected, basename } = useWallet()
+  const { isConnected, address } = useAccount()
   const [showComments, setShowComments] = useState(false)
   const [commentText, setCommentText] = useState("")
   const [showValueInput, setShowValueInput] = useState(false)
-  const [valueAmount, setValueAmount] = useState("0.7") // Ubah dari 0.01
+  const [valueAmount, setValueAmount] = useState("0.7")
+
+  const displayName = address
+    ? `${address.slice(0, 6)}...${address.slice(-4)}`
+    : "Anonymous"
 
   const handleComment = () => {
     if (!commentText.trim() || !isConnected) return
     addComment(story.id, {
-      author: basename?.split(".")[0] || "Anonymous",
-      basename: basename || "anon.base.eth",
+      author: displayName,
+      basename: address || "anon.base.eth",
       text: commentText,
     })
     setCommentText("")
@@ -36,10 +41,10 @@ export function StoryCard({ story }: { story: Story }) {
 
   const handleValue = () => {
     const amount = Number.parseFloat(valueAmount)
-    if (Number.isNaN(amount) || amount < 0.7) return // Ubah dari 0.01
+    if (Number.isNaN(amount) || amount < 0.7) return
     valueStory(story.id, amount)
     setShowValueInput(false)
-    setValueAmount("0.7") // Ubah dari 0.01
+    setValueAmount("0.7")
   }
 
   const handleShare = () => {
@@ -55,12 +60,9 @@ export function StoryCard({ story }: { story: Story }) {
   return (
     <article className="border-b border-border bg-card">
       <div className="px-4 py-4">
-        {/* Author header - dikosongkan sampai app Names online */}
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted">
-              {/* Kosong */}
-            </div>
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted" />
             <div>
               <span className="text-base font-semibold text-muted-foreground">Coming Soon</span>
               <p className="text-xs text-muted-foreground">{timeAgo(story.createdAt)}</p>
@@ -68,15 +70,13 @@ export function StoryCard({ story }: { story: Story }) {
           </div>
         </div>
 
-        {/* Story content - teks diperbesar */}
         <p className="mt-3 text-base leading-relaxed text-foreground">{story.story}</p>
 
-        {/* Action bar */}
         <div className="mt-4 flex items-center justify-between">
           <button
             onClick={() => isConnected && toggleLike(story.id)}
             className={cn(
-              "flex items-center gap-1.5 text-sm transition-colors", // text-xs → text-sm
+              "flex items-center gap-1.5 text-sm transition-colors",
               story.liked ? "text-red-500" : "text-muted-foreground hover:text-red-500"
             )}
             disabled={!isConnected}
@@ -111,7 +111,6 @@ export function StoryCard({ story }: { story: Story }) {
           </button>
         </div>
 
-        {/* Value input - minimum 0.7 */}
         {showValueInput && (
           <div className="mt-3 flex items-center gap-2 rounded-lg border border-border bg-secondary/50 p-2">
             <span className="text-sm font-medium text-muted-foreground">USDC</span>
@@ -133,7 +132,6 @@ export function StoryCard({ story }: { story: Story }) {
           </div>
         )}
 
-        {/* Comments section */}
         {showComments && (
           <div className="mt-3 border-t border-border pt-3">
             {story.comments.length > 0 && (
