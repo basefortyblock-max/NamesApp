@@ -2,8 +2,9 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useWallet } from "@/lib/wallet-context"
+import { useAccount } from "wagmi"
 import { useStories } from "@/lib/stories-context"
+import { ConnectWallet } from "@coinbase/onchainkit/wallet"
 import { Wallet, CheckCircle2, AlertCircle } from "lucide-react"
 
 const PLATFORMS = [
@@ -16,7 +17,7 @@ const PLATFORMS = [
 ]
 
 export default function WritePage() {
-  const { isConnected, basename, address, connect } = useWallet()
+  const { isConnected, address } = useAccount()
   const { addStory } = useStories()
   const router = useRouter()
 
@@ -36,13 +37,15 @@ export default function WritePage() {
         <p className="mt-2 text-base text-muted-foreground">
           You need to connect your wallet to share your name philosophy.
         </p>
-        <button
-          onClick={connect}
-          className="mt-5 inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          <Wallet className="h-4 w-4" />
-          Connect Wallet
-        </button>
+
+        <div className="mt-5">
+          <ConnectWallet
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            <Wallet className="h-4 w-4" />
+            Connect Wallet
+          </ConnectWallet>
+        </div>
       </div>
     )
   }
@@ -66,7 +69,7 @@ export default function WritePage() {
     addStory({
       username,
       platform,
-      basename: basename || "anon.base.eth",
+      basename: "anon.base.eth", // nanti bisa diambil dari OnchainKit Identity kalau perlu
       address: address || "0x0000...0000",
       story,
     })
@@ -179,7 +182,7 @@ export default function WritePage() {
             <CheckCircle2 className="h-4 w-4 shrink-0 text-primary" />
             <div>
               <p className="text-base font-medium text-foreground">{username}</p>
-              <p className="text-sm text-muted-foreground">{platform} · {basename}</p>
+              <p className="text-sm text-muted-foreground">{platform} · {address?.slice(0,6)}...{address?.slice(-4)}</p>
             </div>
           </div>
 
@@ -231,12 +234,12 @@ export default function WritePage() {
               </div>
               <div>
                 <p className="text-base font-semibold text-foreground">{username}</p>
-                <p className="text-sm text-muted-foreground">{platform} · {basename}</p>
+                <p className="text-sm text-muted-foreground">{platform} · {address?.slice(0,6)}...{address?.slice(-4)}</p>
               </div>
             </div>
             <p className="mt-3 text-base leading-relaxed text-foreground">{story}</p>
             <div className="mt-3 flex items-center gap-1.5 text-sm text-primary">
-              <span className="font-semibold">Starting Price: 0.01 USDC</span>
+              <span className="font-semibold">Starting Price: 0.7 USDC</span>
             </div>
           </div>
 

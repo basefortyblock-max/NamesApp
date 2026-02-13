@@ -13,7 +13,8 @@ import {
   ArrowRight,
   Shield,
 } from "lucide-react"
-import { useWallet } from "@/lib/wallet-context"
+import { ConnectWallet } from "@coinbase/onchainkit/wallet"
+import { useAccount } from "wagmi"
 
 const WHY_REASONS = [
   {
@@ -97,7 +98,7 @@ const KEY_FEATURES = [
 ]
 
 export default function AboutPage() {
-  const { isConnected, connect } = useWallet()
+  const { isConnected } = useAccount()
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -178,30 +179,32 @@ export default function AboutPage() {
         </div>
       </section>
 
-      {/* CTA */}
+      {/* CTA - sudah di-fix pakai OnchainKit */}
       <section className="px-4 py-8 text-center">
         <div className="rounded-xl bg-primary p-6 text-primary-foreground">
           <h2 className="text-lg font-bold">Ready to Share Your Story?</h2>
           <p className="mt-1 text-base text-primary-foreground/80">
             Connect your wallet and start earning from your name philosophy.
           </p>
-          {isConnected ? (
-            <Link
-              href="/write"
-              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary-foreground px-6 py-2.5 text-base font-semibold text-primary transition-colors hover:bg-primary-foreground/90"
-            >
-              Write Your Story
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-          ) : (
-            <button
-              onClick={connect}
-              className="mt-4 inline-flex items-center gap-2 rounded-full bg-primary-foreground px-6 py-2.5 text-base font-semibold text-primary transition-colors hover:bg-primary-foreground/90"
-            >
-              Connect Wallet
-              <ArrowRight className="h-4 w-4" />
-            </button>
-          )}
+
+          <div className="mt-5">
+            {isConnected ? (
+              <Link
+                href="/write"
+                className="inline-flex items-center gap-2 rounded-full bg-primary-foreground px-6 py-2.5 text-base font-semibold text-primary transition-colors hover:bg-primary-foreground/90"
+              >
+                Write Your Story
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+            ) : (
+              <ConnectWallet
+                className="inline-flex items-center gap-2 rounded-full bg-primary-foreground px-6 py-2.5 text-base font-semibold text-primary transition-colors hover:bg-primary-foreground/90"
+              >
+                Connect Wallet
+                <ArrowRight className="h-4 w-4" />
+              </ConnectWallet>
+            )}
+          </div>
         </div>
       </section>
     </div>
