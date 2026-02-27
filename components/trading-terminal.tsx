@@ -1,4 +1,3 @@
-// components/trading-terminal.tsx
 "use client"
 
 import { useState, useEffect } from "react"
@@ -7,9 +6,9 @@ import { TrendingUp, TrendingDown, Activity, DollarSign, BarChart3, X } from "lu
 import { useRouter } from "next/navigation"
 
 interface TradingTerminalProps {
-  pairedUsername: string  
-  username1: string       
-  username2: string      
+  pairedUsername: string  // e.g., "fortycrypto×jessepollak"
+  username1: string       // e.g., "fortycrypto"
+  username2: string       // e.g., "jessepollak"
   currentPrice: number
   pairId: string
 }
