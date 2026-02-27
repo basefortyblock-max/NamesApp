@@ -14,11 +14,14 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Names - The Philosophy Behind Your Username",
+  title: "Names - Philosophy Behind Your Username",
   description:
     "Share the charismatic philosophy behind your username. Earn USDC when others value your story on Base.",
   icons: {
     icon: "/favicon.ico",
+  },
+  other: {
+    "base:builder-code": "bc_rapdmhv2",
   },
 }
 
@@ -37,6 +40,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head><meta name="base:app_id" content="694f1d014d3a403912ed8179" /></head>
       <body className="font-sans antialiased">
         <Providers>
           <WalletProvider>

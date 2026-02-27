@@ -19,7 +19,7 @@ interface ExploreUser {
 
 const EXPLORE_USERS: ExploreUser[] = []
   
-  const PLATFORM_FILTERS = ["All", "Base", "Twitter", "Instagram", "TikTok", "Facebook"]
+  const PLATFORM_FILTERS = ["All", "Base", "Farcaster", "Zora"]
 
 export default function ExplorePage() {
   const { isConnected } = useWallet()

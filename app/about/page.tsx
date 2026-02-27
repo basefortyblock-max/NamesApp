@@ -21,7 +21,7 @@ const WHY_REASONS = [
     icon: BookOpen,
     title: "Your Name Has a Story",
     description:
-      "Whether it's your Twitter handle, Base name, or project alias, every name carries history, meaning, and intention. Names represent who we are in the digital world.",
+      "Every username carries history, meaning, and a noble purpose for its owner. These names represent who we are in the digital world, especially in the Base ecosystem.",
   },
   {
     icon: Globe,
@@ -49,7 +49,7 @@ const HOW_STEPS = [
     icon: PenSquare,
     title: "Type Your Username",
     description:
-      "Enter the username you want to share the philosophy about. It can be from any platform: Twitter, Base, Instagram, TikTok, Facebook, or any name you've chosen.",
+      "Enter the username you want to share the philosophy about. It can be from  Base account, Farcaster, Zora.",
   },
   {
     step: "02",
@@ -78,12 +78,12 @@ const KEY_FEATURES = [
   {
     icon: Zap,
     title: "Gasless Transactions",
-    description: "No gas fee for any transaction. Enjoy it.",
+    description: "No gas fee for you.",
   },
   {
     icon: DollarSign,
     title: "Minimum 0.7 USDC",
-    description: "The minimum price is the current story price. It only goes up.",
+    description: "The minimum price is the automatic selling price of your story the first time another user appreciates it."
   },
   {
     icon: Shield,
@@ -111,8 +111,7 @@ export default function AboutPage() {
           The Charismatic Philosophy Behind Your Username
         </h1>
         <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted-foreground text-pretty">
-          App Names represent the philosophy of your username, whether it's Twitter, Base, Instagram,
-          TikTok, Facebook, a project name, or any name you choose for any blockchain platform.
+          Names App represent the philosophy of your username, whether it's Base, Farcaster, Zora.
         </p>
       </section>
 

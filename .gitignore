@@ -76,3 +76,4 @@ pnpm-lock.yaml          # ← comment out kalau mau commit lockfile
 
 # dotenv template 
 !.env.example
+/lib/generated/prisma
