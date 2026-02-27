@@ -7,9 +7,9 @@ import { TrendingUp, TrendingDown, Activity, DollarSign, BarChart3, X } from "lu
 import { useRouter } from "next/navigation"
 
 interface TradingTerminalProps {
-  pairedUsername: string  // e.g., "fortycrypto×jessepollak"
-  username1: string       // e.g., "fortycrypto"
-  username2: string       // e.g., "jessepollak"
+  pairedUsername: string  
+  username1: string       
+  username2: string      
   currentPrice: number
   pairId: string
 }
