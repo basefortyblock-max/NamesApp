@@ -1,4 +1,4 @@
-// components/disclaimer-modal.tsx
+// components/disclaimer-modal.tsx - FIXED VERSION
 "use client"
 
 import { X, AlertTriangle } from "lucide-react"
@@ -6,9 +6,16 @@ import { X, AlertTriangle } from "lucide-react"
 interface DisclaimerModalProps {
   onAccept: () => void
   onCancel: () => void
+  isLoading?: boolean
+  disabled?: boolean
 }
 
-export function DisclaimerModal({ onAccept, onCancel }: DisclaimerModalProps) {
+export function DisclaimerModal({ 
+  onAccept, 
+  onCancel, 
+  isLoading = false,
+  disabled = false 
+}: DisclaimerModalProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
       <div className="w-full max-w-2xl max-h-[90vh] rounded-xl bg-card border-2 border-border overflow-hidden flex flex-col">
@@ -24,7 +31,8 @@ export function DisclaimerModal({ onAccept, onCancel }: DisclaimerModalProps) {
           </div>
           <button
             onClick={onCancel}
-            className="text-muted-foreground hover:text-foreground transition-colors"
+            disabled={isLoading}
+            className="text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
           >
             <X className="h-5 w-5" />
           </button>
@@ -147,17 +155,24 @@ export function DisclaimerModal({ onAccept, onCancel }: DisclaimerModalProps) {
           <div className="flex items-center gap-3">
             <button
               onClick={onCancel}
-              className="flex-1 rounded-lg border border-border bg-card py-3 text-sm font-semibold text-foreground hover:bg-secondary transition-colors"
+              disabled={isLoading}
+              className="flex-1 rounded-lg border border-border bg-card py-3 text-sm font-semibold text-foreground hover:bg-secondary transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               onClick={onAccept}
-              className="flex-1 rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
+              disabled={isLoading || disabled}
+              className="flex-1 rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              I Understand & Accept
+              {isLoading ? 'Processing...' : 'I Understand & Accept'}
             </button>
           </div>
+          {disabled && (
+            <p className="text-xs text-yellow-600 dark:text-yellow-400 text-center mt-2">
+              ⚠️ Please select 2 accounts first
+            </p>
+          )}
           <p className="text-xs text-muted-foreground text-center mt-3">
             By accepting, you confirm you have read and understood this disclaimer
           </p>

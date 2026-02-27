@@ -1,4 +1,4 @@
-// app/pair/page.tsx - COMPLETELY NEW VERSION (Self-Pairing Only)
+// app/pair/page.tsx - FIXED VERSION
 "use client"
 
 import { useState, useEffect } from "react"
@@ -18,18 +18,12 @@ export default function PairPage() {
   const { isConnected, address } = useAccount()
   const router = useRouter()
   
-  // User's verified accounts across platforms
   const [userAccounts, setUserAccounts] = useState<UserAccount[]>([])
   const [selectedAccount1, setSelectedAccount1] = useState<UserAccount | null>(null)
   const [selectedAccount2, setSelectedAccount2] = useState<UserAccount | null>(null)
-  
-  // Pairing state
   const [isPairing, setIsPairing] = useState(false)
   const [showDisclaimer, setShowDisclaimer] = useState(false)
-  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false)
   const [pairedUsername, setPairedUsername] = useState<any>(null)
-  
-  // New: Other user pairing (optional)
   const [showOtherUserOption, setShowOtherUserOption] = useState(false)
 
   // Fetch user's verified accounts
@@ -39,6 +33,8 @@ export default function PairPage() {
     async function fetchUserAccounts() {
       try {
         const response = await fetch(`/api/user/accounts?address=${address}`)
+        if (!response.ok) throw new Error('Failed to fetch accounts')
+        
         const data = await response.json()
         setUserAccounts(data.accounts || [])
       } catch (error) {
@@ -48,6 +44,85 @@ export default function PairPage() {
     
     fetchUserAccounts()
   }, [address])
+
+  const handleSelfPair = () => {
+    // VALIDATION FIRST!
+    if (!selectedAccount1 || !selectedAccount2) {
+      alert('Please select two different accounts to pair')
+      return
+    }
+    
+    if (selectedAccount1.platform === selectedAccount2.platform) {
+      alert('Please select accounts from different platforms')
+      return
+    }
+
+    if (!address) {
+      alert('Please connect wallet first')
+      return
+    }
+    
+    // Show disclaimer
+    setShowDisclaimer(true)
+  }
+
+  const handleDisclaimerAccept = async () => {
+    // CRITICAL: Check again before proceeding
+    if (!selectedAccount1 || !selectedAccount2) {
+      alert('Please select 2 accounts first!')
+      setShowDisclaimer(false)
+      return
+    }
+
+    if (!address) {
+      alert('Please connect wallet first!')
+      setShowDisclaimer(false)
+      return
+    }
+    
+    setShowDisclaimer(false)
+    setIsPairing(true)
+    
+    try {
+      // Call API to mint paired username
+      const response = await fetch('/api/pairs/mint', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          address,
+          username1: selectedAccount1.username,
+          platform1: selectedAccount1.platform,
+          username2: selectedAccount2.username,
+          platform2: selectedAccount2.platform,
+        }),
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || 'Failed to mint paired username')
+      }
+      
+      const data = await response.json()
+      setPairedUsername(data.pair)
+      
+      alert(`Success! Paired username "${data.pair.pairedName}" minted. You paid the gas fee.`)
+    } catch (error: any) {
+      console.error('Pairing error:', error)
+      alert(error.message || 'Failed to mint pair. Please try again.')
+    } finally {
+      setIsPairing(false)
+    }
+  }
+
+  const handleChooseAction = (action: 'write' | 'trade') => {
+    if (!pairedUsername) return
+    
+    if (action === 'write') {
+      router.push(`/write?paired=${pairedUsername.pairedName}`)
+    } else {
+      router.push(`/pair/trade/${pairedUsername.id}`)
+    }
+  }
 
   if (!isConnected) {
     return (
@@ -66,65 +141,6 @@ export default function PairPage() {
         </div>
       </div>
     )
-  }
-
-  const handleSelfPair = () => {
-    if (!selectedAccount1 || !selectedAccount2) {
-      alert('Please select two different accounts to pair')
-      return
-    }
-    
-    if (selectedAccount1.platform === selectedAccount2.platform) {
-      alert('Please select accounts from different platforms')
-      return
-    }
-    
-    // Show disclaimer first
-    setShowDisclaimer(true)
-  }
-
-  const handleDisclaimerAccept = async () => {
-    setShowDisclaimer(false)
-    setDisclaimerAccepted(true)
-    setIsPairing(true)
-    
-    try {
-      // Call smart contract to mint paired username
-      const response = await fetch('/api/pairs/mint', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          address,
-          username1: selectedAccount1!.username,
-          platform1: selectedAccount1!.platform,
-          username2: selectedAccount2!.username,
-          platform2: selectedAccount2!.platform,
-        }),
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to mint paired username')
-      }
-      
-      const data = await response.json()
-      setPairedUsername(data.pair)
-      
-      alert('Paired username minted successfully! You paid the gas fee.')
-    } catch (error) {
-      console.error('Pairing error:', error)
-      alert('Failed to mint pair. Please try again.')
-    } finally {
-      setIsPairing(false)
-    }
-  }
-
-  const handleChooseAction = (action: 'write' | 'trade') => {
-    if (action === 'write') {
-      router.push(`/write?paired=${pairedUsername.pairedName}`)
-    } else {
-      // Stay on page and show trading terminal
-      router.push(`/pair/trade/${pairedUsername.id}`)
-    }
   }
 
   return (
@@ -212,6 +228,10 @@ export default function PairPage() {
                 <select
                   value={selectedAccount1 ? `${selectedAccount1.platform}-${selectedAccount1.username}` : ''}
                   onChange={(e) => {
+                    if (!e.target.value) {
+                      setSelectedAccount1(null)
+                      return
+                    }
                     const [platform, username] = e.target.value.split('-')
                     const account = userAccounts.find(a => a.platform === platform && a.username === username)
                     setSelectedAccount1(account || null)
@@ -223,7 +243,7 @@ export default function PairPage() {
                     <option 
                       key={idx} 
                       value={`${account.platform}-${account.username}`}
-                      disabled={selectedAccount2?.username === account.username}
+                      disabled={selectedAccount2?.username === account.username && selectedAccount2?.platform === account.platform}
                     >
                       {account.username} ({account.platform})
                     </option>
@@ -237,6 +257,10 @@ export default function PairPage() {
                 <select
                   value={selectedAccount2 ? `${selectedAccount2.platform}-${selectedAccount2.username}` : ''}
                   onChange={(e) => {
+                    if (!e.target.value) {
+                      setSelectedAccount2(null)
+                      return
+                    }
                     const [platform, username] = e.target.value.split('-')
                     const account = userAccounts.find(a => a.platform === platform && a.username === username)
                     setSelectedAccount2(account || null)
@@ -248,7 +272,7 @@ export default function PairPage() {
                     <option 
                       key={idx} 
                       value={`${account.platform}-${account.username}`}
-                      disabled={selectedAccount1?.username === account.username}
+                      disabled={selectedAccount1?.username === account.username && selectedAccount1?.platform === account.platform}
                     >
                       {account.username} ({account.platform})
                     </option>
@@ -282,7 +306,7 @@ export default function PairPage() {
               <button
                 onClick={handleSelfPair}
                 disabled={isPairing}
-                className="w-full rounded-xl bg-primary py-4 text-lg font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                className="w-full rounded-xl bg-primary py-4 text-lg font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isPairing ? 'Minting...' : 'Mint Paired Username'}
               </button>
@@ -391,6 +415,8 @@ export default function PairPage() {
         <DisclaimerModal
           onAccept={handleDisclaimerAccept}
           onCancel={() => setShowDisclaimer(false)}
+          isLoading={isPairing}
+          disabled={!selectedAccount1 || !selectedAccount2}
         />
       )}
     </div>

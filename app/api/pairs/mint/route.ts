@@ -1,3 +1,4 @@
+// app/api/pairs/mint/route.ts - FIXED VERSION
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
@@ -5,9 +6,18 @@ export async function POST(request: NextRequest) {
   try {
     const { address, username1, platform1, username2, platform2 } = await request.json()
     
-    if (!address || !username1 || !username2) {
+    // Validation
+    if (!address || !username1 || !username2 || !platform1 || !platform2) {
       return NextResponse.json(
         { error: 'Missing required fields' },
+        { status: 400 }
+      )
+    }
+
+    // Check platforms are different
+    if (platform1 === platform2) {
+      return NextResponse.json(
+        { error: 'Please select accounts from different platforms' },
         { status: 400 }
       )
     }
@@ -16,15 +26,16 @@ export async function POST(request: NextRequest) {
     const verifications = await prisma.socialVerification.findMany({
       where: {
         userId: address,
-        username: {
-          in: [username1, username2],
-        },
+        OR: [
+          { username: username1, platform: platform1 },
+          { username: username2, platform: platform2 },
+        ],
       },
     })
     
     if (verifications.length !== 2) {
       return NextResponse.json(
-        { error: 'Both accounts must be verified by you' },
+        { error: 'Both accounts must be verified by you. Please verify them first in the Write page.' },
         { status: 400 }
       )
     }
@@ -32,7 +43,21 @@ export async function POST(request: NextRequest) {
     // Generate paired name
     const pairedName = `${username1}×${username2}`
     
-    // Create pair (smart contract call would happen here)
+    // Check if pair already exists
+    const existingPair = await prisma.pairedUsername.findUnique({
+      where: { pairedName },
+    })
+    
+    if (existingPair) {
+      return NextResponse.json(
+        { error: 'This username pair already exists' },
+        { status: 400 }
+      )
+    }
+    
+    // Create pair
+    // Note: In production, smart contract call would happen here
+    // For now, we just create the database record
     const pair = await prisma.pairedUsername.create({
       data: {
         username1,
@@ -40,15 +65,62 @@ export async function POST(request: NextRequest) {
         username2,
         platform2,
         pairedName,
-        creatorId: address,
+        creator: address,
+        currentPrice: 0.7, // Starting price
+        forSale: false,
       },
     })
     
-    return NextResponse.json({ pair }, { status: 201 })
-  } catch (error) {
+    return NextResponse.json({ 
+      success: true,
+      pair 
+    }, { status: 201 })
+    
+  } catch (error: any) {
     console.error('Mint pair error:', error)
+    
+    // Handle specific Prisma errors
+    if (error.code === 'P2002') {
+      return NextResponse.json(
+        { error: 'This username pair already exists' },
+        { status: 400 }
+      )
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to mint paired username' },
+      { 
+        error: 'Failed to mint paired username',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+      },
+      { status: 500 }
+    )
+  }
+}
+
+// GET - Get pair details
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const address = searchParams.get('address')
+    
+    if (!address) {
+      return NextResponse.json(
+        { error: 'Address required' },
+        { status: 400 }
+      )
+    }
+    
+    const pairs = await prisma.pairedUsername.findMany({
+      where: { creator: address },
+      orderBy: { createdAt: 'desc' },
+    })
+    
+    return NextResponse.json({ pairs })
+    
+  } catch (error: any) {
+    console.error('Get pairs error:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch pairs' },
       { status: 500 }
     )
   }
