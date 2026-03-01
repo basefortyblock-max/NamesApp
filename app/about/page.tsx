@@ -13,7 +13,7 @@ import {
   ArrowRight,
   Shield,
 } from "lucide-react"
-import { ConnectWallet } from "@coinbase/onchainkit/wallet"
+import { ConnectWalletButton } from "@/components/connect-wallet-button"
 import { useAccount } from "wagmi"
 
 const WHY_REASONS = [
@@ -196,12 +196,7 @@ export default function AboutPage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
             ) : (
-              <ConnectWallet
-                className="inline-flex items-center gap-2 rounded-full bg-primary-foreground px-6 py-2.5 text-base font-semibold text-primary transition-colors hover:bg-primary-foreground/90"
-              >
-                Connect Wallet
-                <ArrowRight className="h-4 w-4" />
-              </ConnectWallet>
+              <ConnectWalletButton className="inline-flex items-center gap-2 rounded-full bg-primary-foreground px-6 py-2.5 text-base font-semibold text-primary transition-colors hover:bg-primary-foreground/90" />
             )}
           </div>
         </div>
