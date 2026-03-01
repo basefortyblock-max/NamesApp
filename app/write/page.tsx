@@ -173,31 +173,35 @@ export default function WritePage() {
   }
 
   const handleConfirmPublish = async () => {
-    setIsPublishing(true)
+  setIsPublishing(true)
+  
+  try {
+    const response = await fetch('/api/stories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        userId: address,
+        username: username.trim(),
+        platform,
+        story: story.trim(),
+        verified: isVerified,
+      }),
+    })
     
-    try {
-      const response = await fetch('/api/stories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: address, 
-          username,
-          platform,
-          story,
-          verified: isVerified,
-        }),
-      })
-      
-      if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.error || 'Failed to publish')
+    const data = await response.json()
+    
+    if (!response.ok) {
+      // Show error from API
+      throw new Error(data.error || 'Failed to publish')
     }
     
-    alert('✅ Published! Starting price: 0.7 USDC')
-    router.push('/')
+    alert('✅ Story published! Starting price: 0.7 USDC')
+    window.location.href = '/'
+    
   } catch (error: any) {
-    console.error('Publish error:', error)
-    alert(`❌ ${error.message}`)
+    console.error('❌ Error:', error)
+    alert(`❌ ${error.message}`) // This will show "Story already exists"
+  } finally {
     setIsPublishing(false)
   }
 }

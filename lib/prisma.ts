@@ -1,4 +1,4 @@
-// lib/prisma.ts
+// lib/prisma.ts - YOUR VERSION (KEEP THIS!) ✅
 import { PrismaClient } from '@prisma/client';
 import { Pool } from 'pg';
 import { PrismaPg } from '@prisma/adapter-pg';
