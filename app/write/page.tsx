@@ -180,7 +180,7 @@ export default function WritePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userId: address, // FIX: was 'address', now 'userId'
+          userId: address, 
           username,
           platform,
           story,
@@ -366,7 +366,7 @@ export default function WritePage() {
                 Your story starts at <span className="font-semibold text-foreground">0.7 USDC</span>. 
                 The more users appreciate your story, the higher the price grows.
               </p>
-              <p className="mt-1">No gas fees. Names app handles all transactions.</p>
+              <p className="mt-1">No gas fees.</p>
             </div>
           </div>
 
