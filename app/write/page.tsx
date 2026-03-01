@@ -1,4 +1,4 @@
-// app/write/page.tsx - SIMPLIFIED VERSION (No OAuth)
+// app/write/page.tsx 
 "use client"
 
 import { useState, useEffect } from "react"
@@ -180,7 +180,7 @@ export default function WritePage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          address,
+          userId: address, // FIX: was 'address', now 'userId'
           username,
           platform,
           story,
@@ -189,17 +189,18 @@ export default function WritePage() {
       })
       
       if (!response.ok) {
-        throw new Error('Failed to publish story')
-      }
-      
-      // Redirect to home
-      router.push('/')
-    } catch (error) {
-      console.error('Publish error:', error)
-      alert('Failed to publish story. Please try again.')
-      setIsPublishing(false)
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to publish')
     }
+    
+    alert('✅ Published! Starting price: 0.7 USDC')
+    router.push('/')
+  } catch (error: any) {
+    console.error('Publish error:', error)
+    alert(`❌ ${error.message}`)
+    setIsPublishing(false)
   }
+}
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
@@ -432,3 +433,4 @@ export default function WritePage() {
     </div>
   )
 }
+
