@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// PENTING: Pastikan tidak ada edge runtime
-// export const runtime = 'nodejs' // Optional, default sudah nodejs
-
+// Route for trading paired usernames
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -12,17 +10,17 @@ export async function POST(
     const { from, type, price, txHash } = await request.json()
     
     // Validation
-    if (!from || !type || !price || !txHash) {
+    if (!from || !type || price === undefined || !txHash) {
       return NextResponse.json(
         { error: 'Missing required fields: from, type, price, txHash' },
         { status: 400 }
       )
     }
 
-    // Validate type
-    if (!['buy', 'sell'].includes(type)) {
+    // Validate type - support mint, buy, sell, list
+    if (!['mint', 'buy', 'sell', 'list'].includes(type)) {
       return NextResponse.json(
-        { error: 'Invalid type. Must be "buy" or "sell"' },
+        { error: 'Invalid type. Must be "mint", "buy", "sell", or "list"' },
         { status: 400 }
       )
     }
@@ -62,26 +60,37 @@ export async function POST(
         type,
         price,
         txHash,
-        status: 'completed',
+        status: 'confirmed',
       },
     })
 
-    // Calculate new high/low prices
-    const newHighPrice = Math.max(price, pairedUsername.highPrice || 0)
-    const newLowPrice = pairedUsername.lowPrice 
-      ? Math.min(price, pairedUsername.lowPrice)
-      : price
+    // Update pair statistics based on trade type
+    const updateData: any = { lastTradeAt: new Date() }
 
-    // Update pair statistics
+    if (type === 'buy' || type === 'sell') {
+      // Update price history for buy/sell trades
+      const newHighPrice = Math.max(price, pairedUsername.highPrice || 0)
+      const newLowPrice = pairedUsername.lowPrice 
+        ? Math.min(price, pairedUsername.lowPrice)
+        : price
+
+      updateData.currentPrice = price
+      updateData.totalVolume = (pairedUsername.totalVolume || 0) + price
+      updateData.highPrice = newHighPrice
+      updateData.lowPrice = newLowPrice
+    } else if (type === 'list') {
+      // For list, set for sale and update price
+      updateData.forSale = true
+      updateData.currentPrice = price
+    } else if (type === 'mint') {
+      // For mint, set initial price
+      updateData.currentPrice = price
+    }
+
+    // Apply updates
     await prisma.pairedUsername.update({
       where: { id: params.id },
-      data: {
-        currentPrice: price,
-        totalVolume: (pairedUsername.totalVolume || 0) + price,
-        highPrice: newHighPrice,
-        lowPrice: newLowPrice,
-        lastTradeAt: new Date(),
-      },
+      data: updateData,
     })
 
     return NextResponse.json({ 

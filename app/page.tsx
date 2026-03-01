@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAccount } from "wagmi"
-import { ConnectWallet } from "@coinbase/onchainkit/wallet"
-import { Sparkles, Heart, Share2, MessageCircle, X } from "lucide-react"
+import { ConnectWalletButton } from "@/components/connect-wallet-button"
+import { Sparkles, Heart, Share2, X } from "lucide-react"
+import StoryComments from "@/components/story-comments"
 
 interface Story {
   id: string
@@ -163,7 +164,7 @@ export default function HomePage() {
           <p className="text-sm text-muted-foreground mb-4">
             Connect your wallet to share the philosophy behind your username
           </p>
-          <ConnectWallet className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
+          <ConnectWalletButton className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
         </div>
       )}
 
@@ -207,7 +208,7 @@ export default function HomePage() {
               Write Your Story
             </button>
           ) : (
-            <ConnectWallet className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
+            <ConnectWalletButton className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
           )}
         </div>
       ) : (
@@ -259,39 +260,36 @@ export default function HomePage() {
               </p>
 
               {/* Story Actions */}
-              <div className="flex items-center gap-4 pt-4 border-t border-border">
-                <button 
-                  onClick={() => handleLike(story.id)}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-red-500 transition-colors"
-                >
-                  <Heart className="h-4 w-4" />
-                  <span>{story.likes || 0}</span>
-                </button>
-                
-                <button 
-                  onClick={() => alert('Comments coming soon!')}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  <span>Comment</span>
-                </button>
-                
-                <button 
-                  onClick={() => handleShare(story)}
-                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Share2 className="h-4 w-4" />
-                  <span>Share</span>
-                </button>
-                
-                {address && (
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 pt-4 border-t border-border">
                   <button 
-                    onClick={() => openValueModal(story)}
-                    className="ml-auto rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                    onClick={() => handleLike(story.id)}
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-red-500 transition-colors"
                   >
-                    Send Value
+                    <Heart className="h-4 w-4" />
+                    <span>{story.likes || 0}</span>
                   </button>
-                )}
+                  
+                  <button 
+                    onClick={() => handleShare(story)}
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    <span>Share</span>
+                  </button>
+                  
+                  {address && (
+                    <button 
+                      onClick={() => openValueModal(story)}
+                      className="ml-auto rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                    >
+                      Send Value
+                    </button>
+                  )}
+                </div>
+
+                {/* Comments Component */}
+                <StoryComments storyId={story.id} address={address} />
               </div>
             </article>
           ))}

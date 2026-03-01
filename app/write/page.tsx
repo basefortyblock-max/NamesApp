@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAccount, useSignMessage } from "wagmi"
-import { ConnectWallet } from "@coinbase/onchainkit/wallet"
+import { ConnectWalletButton } from "@/components/connect-wallet-button"
 import { Wallet, CheckCircle2, AlertCircle, Loader2, Shield } from "lucide-react"
 
 // Only Base, Farcaster, Zora - NO OAuth platforms
@@ -56,10 +56,7 @@ export default function WritePage() {
           You need to connect your wallet to share your name philosophy.
         </p>
         <div className="mt-5">
-          <ConnectWallet className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90">
-            <Wallet className="h-4 w-4" />
-            Connect Wallet
-          </ConnectWallet>
+          <ConnectWalletButton className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90" />
         </div>
       </div>
     )

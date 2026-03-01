@@ -1,20 +1,6 @@
 "use client"
 
-import {
-  ConnectWallet,
-  Wallet,
-  WalletDropdown,
-  WalletDropdownBasename,
-  WalletDropdownDisconnect,
-  WalletDropdownFundLink,
-} from '@coinbase/onchainkit/wallet'
-import {
-  Address,
-  Avatar,
-  Name,
-  Identity,
-  EthBalance,
-} from '@coinbase/onchainkit/identity'
+import { ConnectWalletButton } from './connect-wallet-button'
 
 export function AppHeader() {
   return (
@@ -27,26 +13,7 @@ export function AppHeader() {
           <span className="text-lg font-bold tracking-tight text-foreground">Names</span>
         </div>
 
-        <Wallet>
-          <ConnectWallet
-            className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
-            disconnectedLabel="Connect"
-          >
-            <Avatar className="h-6 w-6" />
-            <Name />
-          </ConnectWallet>
-          <WalletDropdown>
-            <Identity className="px-4 pt-3 pb-2" hasCopyAddressOnClick>
-              <Avatar />
-              <Name />
-              <Address />
-              <EthBalance />
-            </Identity>
-            <WalletDropdownBasename />
-            <WalletDropdownFundLink />
-            <WalletDropdownDisconnect />
-          </WalletDropdown>
-        </Wallet>
+        <ConnectWalletButton className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
       </div>
     </header>
   )
