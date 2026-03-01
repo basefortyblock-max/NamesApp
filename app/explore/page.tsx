@@ -1,196 +1,140 @@
 "use client"
 
-import { useState } from "react"
-import { Search, UserPlus, UserCheck, TrendingUp } from "lucide-react"
-import { cn } from "@/lib/utils"
-import { useWallet } from "@/lib/wallet-context"
-import { useStories } from "@/lib/stories-context"
-import { StoryCard } from "@/components/story-card"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
+import { Search, Filter, CheckCircle2, ArrowRight } from "lucide-react"
 
-interface ExploreUser {
+interface User {
+  address: string
   username: string
-  basename: string
   platform: string
-  stories: number
-  followers: number
-  totalValue: number
-  isFollowing: boolean
+  verified: boolean
+  openForPairing: boolean
+  createdAt: string
 }
 
-const EXPLORE_USERS: ExploreUser[] = []
-  
-  const PLATFORM_FILTERS = ["All", "Base", "Farcaster", "Zora"]
-
 export default function ExplorePage() {
-  const { isConnected } = useWallet()
-  const { stories } = useStories()
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedPlatform, setSelectedPlatform] = useState("All")
-  const [users, setUsers] = useState(EXPLORE_USERS)
-  const [activeTab, setActiveTab] = useState<"users" | "trending">("users")
+  const router = useRouter()
+  const [users, setUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [filterOpen, setFilterOpen] = useState(false)
 
-  const toggleFollow = (username: string) => {
-    setUsers((prev) =>
-      prev.map((u) =>
-        u.username === username ? { ...u, isFollowing: !u.isFollowing } : u
-      )
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  async function fetchUsers() {
+    try {
+      const response = await fetch('/api/users/available')
+      const data = await response.json()
+      setUsers(data.users || [])
+    } catch (error) {
+      console.error('Failed to fetch users:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = user.username.toLowerCase().includes(searchTerm.toLowerCase())
+    const matchesFilter = !filterOpen || user.openForPairing
+    return matchesSearch && matchesFilter
+  })
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
+      </div>
     )
   }
 
-  const filteredUsers = users.filter((u) => {
-    const matchesSearch =
-      u.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.basename.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesPlatform =
-      selectedPlatform === "All" || u.platform === selectedPlatform
-    return matchesSearch && matchesPlatform
-  })
-
-  const trendingStories = [...stories].sort((a, b) => b.price - a.price)
-
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="px-4 py-4">
-        <h1 className="text-xl font-bold text-foreground">Explore</h1>
-        <p className="mt-1 text-base text-muted-foreground">
-          Discover names and the stories behind them.
-        </p>
-      </div>
+    <div className="mx-auto max-w-4xl px-4 py-6">
+      <h1 className="text-xl font-bold text-foreground">Explore Usernames</h1>
+      <p className="mt-1 text-base text-muted-foreground">
+        Discover usernames available for pairing
+      </p>
 
-      {/* Search bar */}
-      <div className="px-4">
-        <div className="flex items-center gap-2 rounded-lg border border-input bg-card px-3 py-2.5">
-          <Search className="h-4 w-4 text-muted-foreground" />
+      {/* Search & Filter */}
+      <div className="mt-6 flex gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
             type="text"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search usernames or basenames..."
-            className="flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            placeholder="Search usernames..."
+            className="w-full rounded-lg border border-input bg-card pl-10 pr-3 py-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="mt-4 flex border-b border-border px-4">
         <button
-          onClick={() => setActiveTab("users")}
-          className={cn(
-            "flex-1 border-b-2 pb-2.5 text-base font-medium transition-colors",
-            activeTab === "users"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          )}
+          onClick={() => setFilterOpen(!filterOpen)}
+          className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
+            filterOpen 
+              ? 'border-primary bg-primary/10 text-primary' 
+              : 'border-border bg-card text-foreground hover:border-primary/40'
+          }`}
         >
-          Users
-        </button>
-        <button
-          onClick={() => setActiveTab("trending")}
-          className={cn(
-            "flex-1 border-b-2 pb-2.5 text-base font-medium transition-colors",
-            activeTab === "trending"
-              ? "border-primary text-primary"
-              : "border-transparent text-muted-foreground hover:text-foreground"
-          )}
-        >
-          <span className="flex items-center justify-center gap-1.5">
-            <TrendingUp className="h-3.5 w-3.5" />
-            Trending
-          </span>
+          <Filter className="h-4 w-4" />
+          Open for Pairing
         </button>
       </div>
 
-      {activeTab === "users" && (
-        <>
-          {/* Platform filters */}
-          <div className="flex gap-2 overflow-x-auto px-4 py-3 scrollbar-hide">
-            {PLATFORM_FILTERS.map((p) => (
-              <button
-                key={p}
-                onClick={() => setSelectedPlatform(p)}
-                className={cn(
-                  "shrink-0 rounded-full border px-3 py-1.5 text-sm font-medium transition-colors",
-                  selectedPlatform === p
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border bg-card text-muted-foreground hover:border-primary/40"
-                )}
-              >
-                {p}
-              </button>
-            ))}
+      {/* Results */}
+      <div className="mt-6">
+        <p className="text-sm text-muted-foreground mb-4">
+          {filteredUsers.length} username{filteredUsers.length !== 1 ? 's' : ''} found
+        </p>
+
+        {filteredUsers.length === 0 ? (
+          <div className="rounded-xl border border-border bg-card p-12 text-center">
+            <p className="text-sm text-muted-foreground">No usernames found</p>
           </div>
-
-          {/* Users list */}
-          <div className="flex flex-col">
+        ) : (
+          <div className="grid grid-cols-1 gap-3">
             {filteredUsers.map((user) => (
               <div
-                key={user.username}
-                className="flex items-center justify-between border-b border-border px-4 py-3"
+                key={user.address}
+                className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary/40 transition-colors"
               >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15">
-                    <span className="text-base font-bold text-primary">
-                      {user.username.charAt(0).toUpperCase()}
-                    </span>
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 shrink-0">
+                  <span className="text-base font-bold text-primary">
+                    {user.username.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-foreground">@{user.username}</p>
+                    {user.verified && (
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
+                    )}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-base font-semibold text-foreground">{user.username}</span>
-                      <span className="rounded-full bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground">
-                        {user.platform}
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{user.basename}</p>
-                    <div className="mt-0.5 flex items-center gap-3 text-[10px] text-muted-foreground">
-                      <span>{user.stories} stories</span>
-                      <span>{user.followers} followers</span>
-                      <span className="text-primary font-medium">${user.totalValue.toFixed(2)}</span>
-                    </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{user.platform}</span>
+                    {user.openForPairing && (
+                      <>
+                        <span>•</span>
+                        <span className="text-green-600 font-medium">Open for Pairing</span>
+                      </>
+                    )}
                   </div>
                 </div>
 
-                {isConnected && (
-                  <button
-                    onClick={() => toggleFollow(user.username)}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-semibold transition-colors",
-                      user.isFollowing
-                        ? "bg-secondary text-secondary-foreground"
-                        : "bg-primary text-primary-foreground hover:bg-primary/90"
-                    )}
-                  >
-                    {user.isFollowing ? (
-                      <>
-                        <UserCheck className="h-3.5 w-3.5" />
-                        Following
-                      </>
-                    ) : (
-                      <>
-                        <UserPlus className="h-3.5 w-3.5" />
-                        Follow
-                      </>
-                    )}
-                  </button>
-                )}
+                <button
+                  onClick={() => router.push(`/pair?user=${user.address}`)}
+                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+                >
+                  Pair
+                  <ArrowRight className="h-4 w-4" />
+                </button>
               </div>
             ))}
-
-            {filteredUsers.length === 0 && (
-              <div className="px-4 py-12 text-center">
-                <p className="text-base text-muted-foreground">No users found matching your search.</p>
-              </div>
-            )}
           </div>
-        </>
-      )}
-
-      {activeTab === "trending" && (
-        <div className="flex flex-col">
-          {trendingStories.map((story) => (
-            <StoryCard key={story.id} story={story} />
-          ))}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

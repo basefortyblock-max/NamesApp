@@ -7,8 +7,10 @@ import { WalletProvider } from "@/lib/wallet-context"
 import { StoriesProvider } from "@/lib/stories-context"
 import { AppHeader } from "@/components/app-header"
 import { BottomNav } from "@/components/bottom-nav"
+import { ErrorBoundary } from "@/components/error-boundary"
 import "@coinbase/onchainkit/styles.css"
 import "./globals.css"
+
 
 const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
@@ -33,24 +35,22 @@ export const viewport: Viewport = {
   userScalable: false,
 }
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode
-}>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <head><meta name="base:app_id" content="694f1d014d3a403912ed8179" /></head>
       <body className="font-sans antialiased">
-        <Providers>
-          <WalletProvider>
-            <StoriesProvider>
-              <AppHeader />
-              <main className="pb-20">{children}</main>
-              <BottomNav />
-            </StoriesProvider>
-          </WalletProvider>
-        </Providers>
+        <ErrorBoundary>
+          <Providers>
+            <WalletProvider>
+              <StoriesProvider>
+                <AppHeader />
+                <main className="pb-20">{children}</main>
+                <BottomNav />
+              </StoriesProvider>
+            </WalletProvider>
+          </Providers>
+        </ErrorBoundary>
         <Analytics />
       </body>
     </html>

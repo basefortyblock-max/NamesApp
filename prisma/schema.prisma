@@ -1,6 +1,6 @@
 datasource db {
   provider = "postgresql"
-}
+  }
 
 generator client {
   provider = "prisma-client-js"
@@ -11,6 +11,7 @@ model User {
   address           String               @unique
   basename          String?
   balance           Float                @default(0)
+  openForPairing    Boolean              @default(false)
   createdAt         DateTime             @default(now())
   updatedAt         DateTime             @updatedAt
   

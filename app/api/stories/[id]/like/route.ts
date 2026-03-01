@@ -9,40 +9,17 @@ export async function POST(
     const { address } = await request.json()
     
     if (!address) {
-      return NextResponse.json(
-        { error: 'Address is required' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Please connect wallet' }, { status: 400 })
     }
-    
-    // Toggle like
-    const story = await prisma.story.findUnique({
+
+    const story = await prisma.story.update({
       where: { id: params.id },
+      data: { likes: { increment: 1 } },
     })
-    
-    if (!story) {
-      return NextResponse.json(
-        { error: 'Story not found' },
-        { status: 404 }
-      )
-    }
-    
-    // Update likes count
-    const updatedStory = await prisma.story.update({
-      where: { id: params.id },
-      data: {
-        likes: {
-          increment: 1,
-        },
-      },
-    })
-    
-    return NextResponse.json({ story: updatedStory })
-  } catch (error) {
-    console.error('Like story error:', error)
-    return NextResponse.json(
-      { error: 'Failed to like story' },
-      { status: 500 }
-    )
+
+    return NextResponse.json({ success: true, likes: story.likes })
+  } catch (error: any) {
+    console.error('Like error:', error)
+    return NextResponse.json({ error: 'Failed to like' }, { status: 500 })
   }
 }

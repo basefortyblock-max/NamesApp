@@ -11,13 +11,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // Check if user exists, create if not
     let user = await prisma.user.findUnique({ where: { address: userId } })
     if (!user) {
       console.log('👤 Creating user:', userId)
-      user = await prisma.user.create({
-        data: { address: userId }
-      })
+      user = await prisma.user.create({ data: { address: userId } })
     }
 
     const wordCount = story.trim().split(/\s+/).length
@@ -56,14 +53,28 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    console.log('📚 Fetching all stories...')
+    
     const stories = await prisma.story.findMany({
       orderBy: { createdAt: 'desc' },
-      take: 20,
+      take: 50,
     })
-    return NextResponse.json({ stories })
+
+    console.log(`✅ Found ${stories.length} stories`)
+    
+    return NextResponse.json({ 
+      success: true,
+      count: stories.length,
+      stories 
+    })
+    
   } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+    console.error('❌ Get stories error:', error)
+    return NextResponse.json({ 
+      error: 'Failed to fetch stories',
+      details: error.message 
+    }, { status: 500 })
   }
 }

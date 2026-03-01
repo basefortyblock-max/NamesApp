@@ -1,54 +1,132 @@
-// app/pair/page.tsx - FIXED VERSION
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { useAccount } from "wagmi"
+import { useAccount, useSignMessage } from "wagmi"
 import { ConnectWallet } from "@coinbase/onchainkit/wallet"
-import { Sparkles, Link2, Shield, AlertTriangle, Code, TrendingUp } from "lucide-react"
+import { Wallet, CheckCircle2, AlertCircle, Loader2, Shield, Users, ArrowRight, X } from "lucide-react"
 import { DisclaimerModal } from "@/components/disclaimer-modal"
 
 interface UserAccount {
-  platform: string
   username: string
+  platform: string
   verified: boolean
+}
+
+interface AvailableUser {
+  address: string
+  username: string
+  platform: string
+  verified: boolean
+  openForPairing: boolean
 }
 
 export default function PairPage() {
   const { isConnected, address } = useAccount()
-  const router = useRouter()
+  const { signMessageAsync } = useSignMessage()
   
-  const [userAccounts, setUserAccounts] = useState<UserAccount[]>([])
+  // User's own accounts
+  const [myAccounts, setMyAccounts] = useState<UserAccount[]>([])
+  const [loadingAccounts, setLoadingAccounts] = useState(true)
+  
+  // Available users for pairing
+  const [availableUsers, setAvailableUsers] = useState<AvailableUser[]>([])
+  const [showAvailable, setShowAvailable] = useState(false)
+  
+  // Pairing settings
+  const [openForPairing, setOpenForPairing] = useState(false)
+  const [loadingToggle, setLoadingToggle] = useState(false)
+  
+  // Self-pairing
   const [selectedAccount1, setSelectedAccount1] = useState<UserAccount | null>(null)
   const [selectedAccount2, setSelectedAccount2] = useState<UserAccount | null>(null)
-  const [isPairing, setIsPairing] = useState(false)
+  
+  // Cross-pairing
+  const [selectedOther, setSelectedOther] = useState<AvailableUser | null>(null)
+  
+  // UI states
   const [showDisclaimer, setShowDisclaimer] = useState(false)
-  const [pairedUsername, setPairedUsername] = useState<any>(null)
-  const [showOtherUserOption, setShowOtherUserOption] = useState(false)
+  const [isPairing, setIsPairing] = useState(false)
 
-  // Fetch user's verified accounts
   useEffect(() => {
-    if (!address) return
-    
-    async function fetchUserAccounts() {
-      try {
-        const response = await fetch(`/api/user/accounts?address=${address}`)
-        if (!response.ok) throw new Error('Failed to fetch accounts')
-        
-        const data = await response.json()
-        setUserAccounts(data.accounts || [])
-      } catch (error) {
-        console.error('Failed to fetch accounts:', error)
-      }
+    if (address) {
+      fetchMyAccounts()
+      fetchPairingStatus()
     }
-    
-    fetchUserAccounts()
   }, [address])
 
-  const handleSelfPair = () => {
-    // VALIDATION FIRST!
+  useEffect(() => {
+    if (showAvailable) {
+      fetchAvailableUsers()
+    }
+  }, [showAvailable])
+
+  async function fetchMyAccounts() {
+    try {
+      const response = await fetch(`/api/user/stories?address=${address}`)
+      const data = await response.json()
+      
+      const accounts = data.stories?.map((s: any) => ({
+        username: s.username,
+        platform: s.platform,
+        verified: s.verified,
+      })) || []
+      
+      setMyAccounts(accounts)
+    } catch (error) {
+      console.error('Failed to fetch accounts:', error)
+    } finally {
+      setLoadingAccounts(false)
+    }
+  }
+
+  async function fetchPairingStatus() {
+    try {
+      const response = await fetch(`/api/user/toggle-pairing?address=${address}`)
+      const data = await response.json()
+      setOpenForPairing(data.openForPairing || false)
+    } catch (error) {
+      console.error('Failed to fetch pairing status:', error)
+    }
+  }
+
+  async function fetchAvailableUsers() {
+    try {
+      const response = await fetch('/api/users/available')
+      const data = await response.json()
+      
+      // Filter out current user and only show users open for pairing
+      const filtered = data.users?.filter((u: AvailableUser) => 
+        u.address !== address && u.openForPairing
+      ) || []
+      
+      setAvailableUsers(filtered)
+    } catch (error) {
+      console.error('Failed to fetch available users:', error)
+    }
+  }
+
+  async function togglePairingStatus() {
+    setLoadingToggle(true)
+    try {
+      const response = await fetch('/api/user/toggle-pairing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ address, enabled: !openForPairing }),
+      })
+      
+      const data = await response.json()
+      setOpenForPairing(data.openForPairing)
+      alert(data.openForPairing ? '✅ You are now open for pairing!' : '❌ Pairing disabled')
+    } catch (error) {
+      alert('Failed to update pairing status')
+    } finally {
+      setLoadingToggle(false)
+    }
+  }
+
+  function handleSelfPair() {
     if (!selectedAccount1 || !selectedAccount2) {
-      alert('Please select two different accounts to pair')
+      alert('Please select 2 different accounts')
       return
     }
     
@@ -56,367 +134,284 @@ export default function PairPage() {
       alert('Please select accounts from different platforms')
       return
     }
-
-    if (!address) {
-      alert('Please connect wallet first')
-      return
-    }
     
-    // Show disclaimer
     setShowDisclaimer(true)
   }
 
-  const handleDisclaimerAccept = async () => {
-    // CRITICAL: Check again before proceeding
-    if (!selectedAccount1 || !selectedAccount2) {
-      alert('Please select 2 accounts first!')
-      setShowDisclaimer(false)
-      return
-    }
-
-    if (!address) {
-      alert('Please connect wallet first!')
-      setShowDisclaimer(false)
+  function handleCrossPair() {
+    if (!selectedAccount1 || !selectedOther) {
+      alert('Please select your account and another user\'s account')
       return
     }
     
+    if (selectedAccount1.platform === selectedOther.platform) {
+      alert('Please select accounts from different platforms')
+      return
+    }
+    
+    setShowDisclaimer(true)
+  }
+
+  async function handleConfirmPair() {
     setShowDisclaimer(false)
     setIsPairing(true)
     
     try {
-      // Call API to mint paired username
+      const isSelfPair = !!selectedAccount2
+      
       const response = await fetch('/api/pairs/mint', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           address,
-          username1: selectedAccount1.username,
-          platform1: selectedAccount1.platform,
-          username2: selectedAccount2.username,
-          platform2: selectedAccount2.platform,
+          username1: selectedAccount1!.username,
+          platform1: selectedAccount1!.platform,
+          username2: isSelfPair ? selectedAccount2!.username : selectedOther!.username,
+          platform2: isSelfPair ? selectedAccount2!.platform : selectedOther!.platform,
         }),
       })
       
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to mint paired username')
+        throw new Error(errorData.error || 'Failed to mint')
       }
       
       const data = await response.json()
-      setPairedUsername(data.pair)
+      alert(`✅ Success! Paired username "${data.pair.pairedName}" minted!`)
       
-      alert(`Success! Paired username "${data.pair.pairedName}" minted. You paid the gas fee.`)
+      // Reset selections
+      setSelectedAccount1(null)
+      setSelectedAccount2(null)
+      setSelectedOther(null)
     } catch (error: any) {
       console.error('Pairing error:', error)
-      alert(error.message || 'Failed to mint pair. Please try again.')
+      alert(`❌ ${error.message}`)
     } finally {
       setIsPairing(false)
-    }
-  }
-
-  const handleChooseAction = (action: 'write' | 'trade') => {
-    if (!pairedUsername) return
-    
-    if (action === 'write') {
-      router.push(`/write?paired=${pairedUsername.pairedName}`)
-    } else {
-      router.push(`/pair/trade/${pairedUsername.id}`)
     }
   }
 
   if (!isConnected) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10">
-          <Sparkles className="h-8 w-8 text-primary" />
+        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
+          <Wallet className="h-7 w-7 text-primary" />
         </div>
-        <h1 className="text-2xl font-bold text-foreground">Pair Your Usernames</h1>
-        <p className="mt-3 text-base text-muted-foreground max-w-lg mx-auto leading-relaxed">
-          Connect your wallet, pair your own usernames from Base ecosystem. 
-          Use smart contracts to mint your new username into assets and earn from trade 
-          OR publish them as your unique philosophical story.
+        <h1 className="text-xl font-bold text-foreground">Connect Your Wallet</h1>
+        <p className="mt-2 text-base text-muted-foreground">
+          You need to connect your wallet to pair usernames.
         </p>
-        <div className="mt-8">
-          <ConnectWallet className="inline-flex items-center gap-2 rounded-full bg-primary px-8 py-4 text-lg font-semibold text-primary-foreground hover:bg-primary/90" />
+        <div className="mt-5">
+          <ConnectWallet className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground hover:bg-primary/90" />
         </div>
       </div>
     )
   }
 
-  return (
-    <div className="mx-auto max-w-2xl px-4 py-6 pb-24">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-foreground">Pair Your Usernames</h1>
-        <p className="mt-2 text-base text-muted-foreground leading-relaxed">
-          Connect your wallet, pair your own usernames from Base ecosystem. 
-          Use smart contracts to mint your new username into assets.
-        </p>
+  if (loadingAccounts) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    )
+  }
 
-      {/* Info Card */}
-      <div className="mb-6 rounded-xl border border-primary/30 bg-primary/5 p-4">
-        <div className="flex items-start gap-3">
-          <Shield className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+  return (
+    <div className="mx-auto max-w-4xl px-4 py-6">
+      <h1 className="text-xl font-bold text-foreground">Pair Usernames</h1>
+      <p className="mt-1 text-base text-muted-foreground">
+        Combine your usernames into tradeable NFTs
+      </p>
+
+      {/* Pairing Toggle */}
+      <div className="mt-6 rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
+        <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm font-semibold text-foreground mb-1">
-              Self-Pairing Only
-            </p>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Pair your own verified accounts from different platforms (Base, Farcaster, Zora). 
-              You pay gas fees via smart contract. Gasless paymaster only applies to appreciation on stories.
+            <p className="text-sm font-semibold text-foreground">Open for Pairing with Others</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Allow other users to pair with your username
             </p>
           </div>
+          <button
+            onClick={togglePairingStatus}
+            disabled={loadingToggle}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              openForPairing ? 'bg-primary' : 'bg-border'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                openForPairing ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
         </div>
       </div>
 
-      {/* Your Verified Accounts */}
-      <div className="mb-8">
-        <label className="block text-lg font-bold text-foreground mb-4">
-          Your Verified Accounts
-        </label>
+      {/* Section 1: Your Accounts */}
+      <div className="mt-6">
+        <h2 className="text-lg font-bold text-foreground mb-3">Your Verified Accounts</h2>
         
-        {userAccounts.length === 0 ? (
-          <div className="rounded-xl border-2 border-dashed border-border bg-secondary/30 p-6 text-center">
-            <p className="text-sm text-muted-foreground mb-3">
-              You need to verify your accounts first.
+        {myAccounts.length === 0 ? (
+          <div className="rounded-xl border border-border bg-card p-6 text-center">
+            <Shield className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+            <p className="text-sm text-muted-foreground mb-4">
+              You haven't published any stories yet. Verify and publish your first username to start pairing.
             </p>
             <button
-              onClick={() => router.push('/write')}
+              onClick={() => window.location.href = '/write'}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
             >
-              Verify Your Accounts
+              Verify Account
+              <ArrowRight className="h-4 w-4" />
             </button>
           </div>
         ) : (
-          <div className="grid gap-3">
-            {userAccounts.map((account, idx) => (
-              <div
+          <div className="grid grid-cols-1 gap-3">
+            {myAccounts.map((account, idx) => (
+              <button
                 key={idx}
-                className="rounded-lg border border-border bg-card p-3 flex items-center justify-between"
+                onClick={() => {
+                  if (!selectedAccount1) {
+                    setSelectedAccount1(account)
+                    setSelectedOther(null)
+                  } else if (!selectedAccount2 && !selectedOther) {
+                    if (account.platform !== selectedAccount1.platform) {
+                      setSelectedAccount2(account)
+                    } else {
+                      alert('Please select accounts from different platforms')
+                    }
+                  } else {
+                    // Reset
+                    setSelectedAccount1(account)
+                    setSelectedAccount2(null)
+                    setSelectedOther(null)
+                  }
+                }}
+                className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all ${
+                  selectedAccount1?.username === account.username
+                    ? 'border-primary bg-primary/10'
+                    : selectedAccount2?.username === account.username
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border bg-card hover:border-primary/40'
+                }`}
               >
-                <div>
-                  <p className="text-base font-bold text-foreground">
-                    @{account.username}
-                  </p>
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 shrink-0">
+                  <span className="text-sm font-bold text-primary">
+                    {account.username.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-foreground">@{account.username}</p>
                   <p className="text-xs text-muted-foreground">{account.platform}</p>
                 </div>
                 {account.verified && (
-                  <div className="flex items-center gap-1.5 text-xs text-green-600 dark:text-green-400">
-                    <Shield className="h-3.5 w-3.5" />
-                    Verified
-                  </div>
+                  <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
                 )}
-              </div>
+              </button>
             ))}
           </div>
         )}
-      </div>
 
-      {/* Select Accounts to Pair */}
-      {userAccounts.length >= 2 && (
-        <>
-          <div className="mb-6">
-            <label className="block text-lg font-bold text-foreground mb-4">
-              Select Two Accounts to Pair
-            </label>
-            
-            <div className="grid grid-cols-2 gap-4">
-              {/* Account 1 */}
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Account 1</p>
-                <select
-                  value={selectedAccount1 ? `${selectedAccount1.platform}-${selectedAccount1.username}` : ''}
-                  onChange={(e) => {
-                    if (!e.target.value) {
-                      setSelectedAccount1(null)
-                      return
-                    }
-                    const [platform, username] = e.target.value.split('-')
-                    const account = userAccounts.find(a => a.platform === platform && a.username === username)
-                    setSelectedAccount1(account || null)
-                  }}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                >
-                  <option value="">Select account</option>
-                  {userAccounts.map((account, idx) => (
-                    <option 
-                      key={idx} 
-                      value={`${account.platform}-${account.username}`}
-                      disabled={selectedAccount2?.username === account.username && selectedAccount2?.platform === account.platform}
-                    >
-                      {account.username} ({account.platform})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Account 2 */}
-              <div>
-                <p className="text-sm font-medium text-muted-foreground mb-2">Account 2</p>
-                <select
-                  value={selectedAccount2 ? `${selectedAccount2.platform}-${selectedAccount2.username}` : ''}
-                  onChange={(e) => {
-                    if (!e.target.value) {
-                      setSelectedAccount2(null)
-                      return
-                    }
-                    const [platform, username] = e.target.value.split('-')
-                    const account = userAccounts.find(a => a.platform === platform && a.username === username)
-                    setSelectedAccount2(account || null)
-                  }}
-                  className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                >
-                  <option value="">Select account</option>
-                  {userAccounts.map((account, idx) => (
-                    <option 
-                      key={idx} 
-                      value={`${account.platform}-${account.username}`}
-                      disabled={selectedAccount1?.username === account.username && selectedAccount1?.platform === account.platform}
-                    >
-                      {account.username} ({account.platform})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          </div>
-
-          {/* Pair Preview */}
-          {selectedAccount1 && selectedAccount2 && !pairedUsername && (
-            <div className="rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 p-6 mb-6">
-              <div className="text-center mb-4">
-                <p className="text-sm text-muted-foreground mb-2">Paired Username Preview</p>
-                <div className="inline-block rounded-full bg-primary/20 px-6 py-3">
-                  <span className="text-2xl font-bold text-primary">
-                    {selectedAccount1.username}×{selectedAccount2.username}
-                  </span>
-                </div>
-              </div>
-
-              <div className="rounded-lg bg-accent/50 p-4 mb-4 flex items-start gap-3">
-                <Code className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-                <div className="text-sm text-muted-foreground">
-                  <p className="font-medium text-foreground mb-1">Smart Contract Minting</p>
-                  <p>You will pay gas fees to mint this paired username as an on-chain asset. 
-                  This is NOT covered by gasless paymaster.</p>
-                </div>
-              </div>
-
-              <button
-                onClick={handleSelfPair}
-                disabled={isPairing}
-                className="w-full rounded-xl bg-primary py-4 text-lg font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isPairing ? 'Minting...' : 'Mint Paired Username'}
-              </button>
-            </div>
-          )}
-
-          {/* After Pairing Success */}
-          {pairedUsername && (
-            <div className="rounded-xl border-2 border-green-500/30 bg-green-500/5 p-6 mb-6">
-              <div className="text-center mb-6">
-                <div className="inline-flex items-center gap-2 mb-3">
-                  <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                  <p className="text-sm font-medium text-green-600 dark:text-green-400">
-                    Paired Username Minted Successfully!
-                  </p>
-                </div>
-                <div className="inline-block rounded-full bg-primary/20 px-6 py-3 mb-2">
-                  <span className="text-2xl font-bold text-primary">
-                    {pairedUsername.pairedName}
-                  </span>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Starting price: <span className="font-semibold text-foreground">0.7 USDC</span>
-                </p>
-              </div>
-
-              <p className="text-sm font-medium text-foreground mb-3 text-center">
-                What would you like to do with this paired username?
-              </p>
-
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={() => handleChooseAction('write')}
-                  className="rounded-xl border-2 border-primary bg-card py-4 px-4 text-center hover:bg-primary/10 transition-colors"
-                >
-                  <div className="text-primary mb-1">
-                    <Sparkles className="h-6 w-6 mx-auto" />
-                  </div>
-                  <p className="text-sm font-semibold text-foreground">Write & Publish</p>
-                  <p className="text-xs text-muted-foreground mt-1">Share your story</p>
-                </button>
-                <button
-                  onClick={() => handleChooseAction('trade')}
-                  className="rounded-xl bg-primary py-4 px-4 text-center hover:bg-primary/90 transition-colors"
-                >
-                  <div className="text-primary-foreground mb-1">
-                    <TrendingUp className="h-6 w-6 mx-auto" />
-                  </div>
-                  <p className="text-sm font-semibold text-primary-foreground">Trade Username</p>
-                  <p className="text-xs text-primary-foreground/80 mt-1">List as asset</p>
-                </button>
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Optional: Pair with Another User */}
-      <div className="mt-8 pt-8 border-t border-border">
-        <button
-          onClick={() => setShowOtherUserOption(!showOtherUserOption)}
-          className="w-full rounded-lg border border-border bg-card p-4 text-left hover:bg-secondary/50 transition-colors"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Link2 className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-sm font-semibold text-foreground">
-                  Want to pair with another user's username?
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Contact them via DM or private chat first
-                </p>
-              </div>
-            </div>
-            <span className="text-sm text-primary">
-              {showOtherUserOption ? 'Hide' : 'Show'}
-            </span>
-          </div>
-        </button>
-
-        {showOtherUserOption && (
-          <div className="mt-4 rounded-lg border border-border bg-secondary/30 p-4">
-            <div className="flex items-start gap-3 mb-4">
-              <AlertTriangle className="h-5 w-5 text-yellow-500 shrink-0 mt-0.5" />
-              <div className="text-sm text-muted-foreground">
-                <p className="font-medium text-foreground mb-1">Important Notice</p>
-                <p>Both users must agree and confirm the pairing. 
-                Names app does not facilitate communication or permission management. 
-                You are responsible for obtaining consent.</p>
-              </div>
-            </div>
-            
-            <button
-              onClick={() => setShowDisclaimer(true)}
-              className="w-full rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-            >
-              Read Disclaimer & Continue
-            </button>
-          </div>
+        {/* Self-Pair Button */}
+        {myAccounts.length >= 2 && (
+          <button
+            onClick={handleSelfPair}
+            disabled={!selectedAccount1 || !selectedAccount2}
+            className="mt-4 w-full rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Pair My Accounts ({selectedAccount1?.username || '?'} × {selectedAccount2?.username || '?'})
+          </button>
         )}
       </div>
+
+      {/* Section 2: Pair with Others */}
+      {myAccounts.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold text-foreground">Pair with Other Users</h2>
+            <button
+              onClick={() => setShowAvailable(!showAvailable)}
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              {showAvailable ? 'Hide' : 'Show Available Users'}
+            </button>
+          </div>
+
+          <div className="rounded-xl border border-amber-500/50 bg-amber-500/10 p-4 mb-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
+              <div className="text-sm text-amber-900 dark:text-amber-200">
+                <p className="font-semibold mb-1">Important Notice</p>
+                <p>Contact them via DM or private chat first. Both users must agree and confirm the pairing. You are responsible for obtaining consent.</p>
+              </div>
+            </div>
+          </div>
+
+          {showAvailable && (
+            <div className="space-y-3 mb-4">
+              {availableUsers.length === 0 ? (
+                <p className="text-center text-sm text-muted-foreground py-6">
+                  No users currently open for pairing
+                </p>
+              ) : (
+                availableUsers.map((user, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => {
+                      if (selectedAccount1) {
+                        if (user.platform !== selectedAccount1.platform) {
+                          setSelectedOther(user)
+                          setSelectedAccount2(null)
+                        } else {
+                          alert('Please select accounts from different platforms')
+                        }
+                      } else {
+                        alert('Please select your account first')
+                      }
+                    }}
+                    className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all w-full ${
+                      selectedOther?.username === user.username
+                        ? 'border-primary bg-primary/10'
+                        : 'border-border bg-card hover:border-primary/40'
+                    }`}
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary shrink-0">
+                      <Users className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-foreground">@{user.username}</p>
+                      <p className="text-xs text-muted-foreground">{user.platform}</p>
+                    </div>
+                    <span className="text-xs font-medium text-green-600 bg-green-500/10 px-2 py-1 rounded">
+                      Open
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+
+          {/* Cross-Pair Button */}
+          {selectedOther && (
+            <button
+              onClick={handleCrossPair}
+              disabled={!selectedAccount1 || !selectedOther}
+              className="w-full rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              Pair Accounts ({selectedAccount1?.username || '?'} × {selectedOther?.username || '?'})
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Disclaimer Modal */}
       {showDisclaimer && (
         <DisclaimerModal
-          onAccept={handleDisclaimerAccept}
+          onAccept={handleConfirmPair}
           onCancel={() => setShowDisclaimer(false)}
           isLoading={isPairing}
-          disabled={!selectedAccount1 || !selectedAccount2}
+          disabled={false}
         />
       )}
     </div>
