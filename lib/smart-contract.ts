@@ -1,7 +1,12 @@
 import { ethers } from 'ethers'
 
-const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_USERNAME_NFT_CONTRACT!
+// Contract address from environment - can be swapped in Vercel env settings
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_USERNAME_NFT_CONTRACT
 const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
+
+if (!CONTRACT_ADDRESS) {
+  console.warn('[WARNING] NEXT_PUBLIC_USERNAME_NFT_CONTRACT not set. Using dummy address.')
+}
 
 // Contract ABI (minimal interface)
 const CONTRACT_ABI = [

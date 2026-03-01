@@ -2,6 +2,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
+// Get contract address from environment - can be swapped without code changes
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_USERNAME_NFT_CONTRACT || '0x0000000000000000000000000000000000000000'
+
 export async function POST(request: NextRequest) {
   try {
     const { address, username1, platform1, username2, platform2 } = await request.json()
@@ -56,8 +59,10 @@ export async function POST(request: NextRequest) {
     }
     
     // Create pair
-    // Note: In production, smart contract call would happen here
-    // For now, we just create the database record
+    // Note: In production, smart contract call would happen here using CONTRACT_ADDRESS
+    // Contract address: ${CONTRACT_ADDRESS}
+    // For now, we create the database record with contract address logged
+    console.log(`[Mint Pair] Using contract: ${CONTRACT_ADDRESS}`)
     const pair = await prisma.pairedUsername.create({
       data: {
         username1,
