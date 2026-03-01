@@ -8,7 +8,6 @@ import { StoriesProvider } from "@/lib/stories-context"
 import { AppHeader } from "@/components/app-header"
 import { BottomNav } from "@/components/bottom-nav"
 import { ErrorBoundary } from "@/components/error-boundary"
-import "@coinbase/onchainkit/styles.css"
 import "./globals.css"
 
 

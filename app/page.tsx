@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAccount } from "wagmi"
-import { ConnectWallet } from "@coinbase/onchainkit/wallet"
+import { ConnectWalletButton } from "@/components/connect-wallet-button"
 import { Sparkles, Heart, Share2, X } from "lucide-react"
 import StoryComments from "@/components/story-comments"
 
@@ -164,7 +164,7 @@ export default function HomePage() {
           <p className="text-sm text-muted-foreground mb-4">
             Connect your wallet to share the philosophy behind your username
           </p>
-          <ConnectWallet className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
+          <ConnectWalletButton className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
         </div>
       )}
 
@@ -208,7 +208,7 @@ export default function HomePage() {
               Write Your Story
             </button>
           ) : (
-            <ConnectWallet className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
+            <ConnectWalletButton className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
           )}
         </div>
       ) : (

@@ -5,7 +5,6 @@ import { Heart, MessageCircle, Share2, DollarSign, Send } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useStories, type Story } from "@/lib/stories-context"
 import { useAccount } from "wagmi"
-import { Name } from "@coinbase/onchainkit/identity"
 
 function timeAgo(dateStr: string) {
   const diff = Date.now() - new Date(dateStr).getTime()
