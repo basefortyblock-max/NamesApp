@@ -1,536 +1,445 @@
 # Names App - Whitepaper
 
-**Philosophy Behind Your Username: A Decentralized Storytelling & Trading Platform**
-
-Version 1.0  
-February 2026
+**Version 1.0** | **March 2026**
 
 ---
 
 ## Abstract
 
-Names App is a decentralized application on Base L2 that transforms usernames into philosophical narratives and tradeable digital assets. By combining storytelling, verification, and on-chain trading, Names creates a unique ecosystem where username philosophy meets financial value.
+Names is a decentralized application built on Base L2 that transforms usernames into tradeable digital assets. Users publish philosophical stories about their usernames, receive appreciation in USDC, pair usernames into unique NFTs, and trade them in a mini on-chain marketplace.
 
-This whitepaper outlines the technical architecture, economic model, and philosophical foundation of Names App.
+**Core Value Proposition:**
+- Share the charismatic philosophy behind your username
+- Earn USDC from readers who appreciate your story
+- Pair usernames to create tradeable NFT assets
+- Trade username NFTs with zero friction
 
 ---
 
 ## 1. Introduction
 
-### 1.1 Problem Statement
+### 1.1 The Problem
 
-In the digital age, usernames are our primary identity markers. Yet:
-- Stories behind usernames are lost
-- No platform values username philosophy
-- Identity cannot be monetized
-- Cross-platform identity fragmented
+Usernames are more than labels—they carry meaning, history, philosophy, and identity. Yet most platforms treat them as disposable identifiers. There's no mechanism to:
 
-### 1.2 Solution
+1. **Share the story** behind why you chose your username
+2. **Monetize meaningful content** about your digital identity
+3. **Create composite identities** by pairing usernames
+4. **Trade username-based assets** on-chain
 
-Names App solves this by:
-- **Preserving** username stories on-chain
-- **Valuing** philosophical narratives
-- **Connecting** cross-platform identities
-- **Enabling** monetization through trading
+### 1.2 The Solution
 
-### 1.3 Core Innovation
-
-The unique "paired username" mechanism:
-```
-username1 (Platform A) × username2 (Platform B) = Tradeable Asset
-```
-
-This creates scarcity, uniqueness, and value.
+Names creates a marketplace where:
+- **Writers** publish stories about their usernames and earn appreciation
+- **Readers** discover fascinating username philosophies and support creators
+- **Collectors** pair and trade unique username NFTs
+- **Traders** speculate on the value of paired username assets
 
 ---
 
 ## 2. System Architecture
 
-### 2.1 Technical Stack
+### 2.1 Core Components
+
+#### Homepage (Discovery)
+- Browse published username stories
+- Read philosophical narratives (max 490 words)
+- Send USDC appreciation to creators (min 0.7 USDC)
+- Gasless transactions via Coinbase CDP Paymaster
+
+#### Write (Publishing)
+- Wallet-based verification (sign message)
+- One wallet can publish multiple usernames
+- 490-word limit enforces concise storytelling
+- Permanent on-chain publication
+
+#### Pair (NFT Creation)
+- **Self-Pairing**: Combine 2 of your own usernames
+- **Cross-Pairing**: Pair with another user's username
+- Smart contract minting (user pays gas)
+- Disclaimer before minting
+- Enable/Disable pairing toggle
+
+#### Trading Terminal
+- List paired username NFTs
+- Base price: 0.7 USDC
+- Price increases with trading activity
+- 1% fee to treasury on each trade
+
+### 2.2 Technical Stack
+
+- **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS
+- **Wallet Integration**: Rainbowkit
+- **Blockchain**: Base L2 (Ethereum Layer 2)
+- **Smart Contracts**: Solidity, ERC-721 (NFT standard)
+- **Database**: PostgreSQL, Prisma ORM
+- **Gasless Transactions**: Coinbase CDP Paymaster
+- **Deployment**: Vercel (frontend), Base (contracts)
+
+---
+
+## 3. User Flows
+
+### 3.1 Publishing a Username Story
+
 ```
-┌─────────────────────────────────────────┐
-│         Frontend (Next.js 16)           │
-│  React 19 | TypeScript | Tailwind CSS   │
-└─────────────────────────────────────────┘
-                    ↓
-┌─────────────────────────────────────────┐
-│      Blockchain Layer (Base L2)         │
-│   Smart Contracts | USDC | OnchainKit   │
-└─────────────────────────────────────────┘
-                    ↓
-┌─────────────────────────────────────────┐
-│      Database (Prisma + PostgreSQL)     │
-│   Stories | Pairs | Verifications       │
-└─────────────────────────────────────────┘
-                    ↓
-┌─────────────────────────────────────────┐
-│    External APIs (Verification)         │
-│  Farcaster API | ENS | Base RPC         │
-└─────────────────────────────────────────┘
+1. Connect wallet (MetaMask, Coinbase Wallet, etc.)
+2. Enter username (without @)
+3. Sign verification message
+4. Write story (max 490 words)
+5. Confirm publication (warning: cannot be undone)
+6. Story published at base price 0.7 USDC
 ```
 
-### 2.2 Smart Contract Design
+### 3.2 Sending Appreciation
 
-**UsernameNFT Contract:**
+```
+1. Reader discovers story on homepage
+2. Clicks "Send Appreciation" if needed
+3. Enters amount (min 0.7 USDC, no maximum)
+4. Transaction sponsored by Paymaster (no gas fees)
+5. Creator receives USDC directly
+```
+
+### 3.3 Pairing Usernames (Self)
+
+```
+1. Navigate to Pair page
+2. Select 2 of your verified usernames
+3. Review disclaimer
+4. Mint UsernameNFT (pay gas fee)
+5. Choose: Write Story OR Trade
+6. If Trade: NFT listed at 0.7 USDC base price
+```
+
+### 3.4 Pairing Usernames (Cross)
+
+```
+1. Enable "Open for Pairing" toggle
+2. Other users can see your username
+3. They select your username + their username
+4. Review disclaimer (consent required)
+5. Mint UsernameNFT (they pay gas)
+6. NFT becomes tradeable asset
+```
+
+### 3.5 Trading UsernameNFTs
+
+```
+1. Paired NFT appears in Trading Terminal
+2. Asset format: USERNAME1×USERNAME2/USDC
+3. Users can buy/sell like any trading pair
+4. Price discovery through market activity
+```
+
+---
+
+## 4. Economic Model
+
+### 4.1 Revenue Streams for Creators
+
+#### Story Appreciation
+- Readers send USDC directly to story creators
+- Minimum: 0.7 USDC, no maximum
+- 100% goes to creator (no platform fee)
+- Gasless for readers (sponsored by Paymaster)
+
+### 4.2 Price Dynamics
+
+#### Story Price Appreciation
+```
+Initial Price: 0.7 USDC
+Price Increase: +5% of each appreciation received
+Example:
+  - User sends 10 USDC appreciation
+  - Story price increases by 0.5 USDC
+  - New base price: 1.2 USDC
+```
+
+#### NFT Price Discovery
+```
+Listing Price: Determined by holder
+Market Price: Determined by buyers/sellers
+Floor Price: Community-driven
+Ceiling Price: No limit
+```
+
+### 4.3 Treasury Management
+
+**Treasury Address**: Controlled by multisig
+**Revenue Sources**:
+- 1% of minting fees
+- 1% of trading fees
+
+**Use of Funds**:
+- Paymaster sponsorships (gasless transactions)
+- Platform development
+- Marketing and growth
+- Community rewards
+
+---
+
+## 5. Smart Contracts
+
+### 5.1 UsernameNFT Contract
+
+**Purpose**: Mint and manage paired username NFTs
+
+**Key Functions**:
 ```solidity
-contract UsernameNFT {
-    // Core functions
-    function mintPairedUsername(...) returns (uint256)
-    function listForSale(uint256 tokenId, uint256 price)
-    function buyPairedUsername(uint256 tokenId)
-      
-}
+function mintPairedUsername(
+  string memory username1,
+  string memory username2,
+  address creator
+) external payable returns (uint256 tokenId)
+
+function getTradingPrice(uint256 tokenId) 
+  external view returns (uint256)
+
+function transfer(
+  address from,
+  address to,
+  uint256 tokenId
+) external
 ```
 
-**Key Features:**
-- ERC721 standard for NFTs
-- Immutable ownership records
-- Transparent pricing
+**Metadata**:
+- Token ID: Sequential
+- Username Pair: "username1×username2"
+- Creator: Original minter
+- Mint Timestamp: Block timestamp
+- Trading History: On-chain events
 
-### 2.3 Verification System
+### 5.2 Trading Contract
 
-Three-tier verification:
+**Purpose**: Facilitate peer-to-peer NFT trading
 
-**Base (Native):**
-```typescript
-Method: Sign-In with Ethereum (SIWE)
-Security: Cryptographic signature
-Cost: Gas only
+**Key Functions**:
+```solidity
+function listForSale(
+  uint256 tokenId,
+  uint256 price
+) external
+
+function buyNFT(uint256 tokenId) external payable
+
+function cancelListing(uint256 tokenId) external
 ```
 
-**Farcaster (API):**
-```typescript
-Method: Warpcast public API
-Verification: FID + username match
-Cost: Free (public API)
-```
-
-**Zora (ENS):**
-```typescript
-Method: ENS resolution
-Verification: Address ownership
-Cost: Free (read-only)
-```
+**Fee Structure**:
+- Buyer pays listing price + 1% fee
+- Seller receives listing price
+- Treasury receives 1% fee
 
 ---
 
-## 3. Core Mechanisms
+## 6. User Protection & Legal
 
-### 3.1 Write Mechanism
+### 6.1 Pairing Disclaimer
 
-**Flow:**
-```
-User connects wallet
-  ↓
-Selects platform (Base/Farcaster/Zora)
-  ↓
-Enters username
-  ↓
-Verification process
-  ↓
-Writes story (max 490 words)
-  ↓
-Publishes on-chain
-  ↓
-Receives appreciation (USDC)
-```
+Before minting paired usernames, users acknowledge:
 
-**Word Limit Philosophy: 7×7×10 = 490**
-- **7**: Perfection and completeness
-- **10**: Binary foundation (1 and 0)
-- **490**: Optimal length for philosophical expression
+> **Username Pairing Disclaimer**
+>
+> By using the username pairing feature in Names, you acknowledge and agree that:
+>
+> 1. All pairings are speculative and user-generated, and are not officially affiliated with any platform or username owner
+> 2. Names is not responsible for any trademark, copyright, or misuse claims by third parties
+> 3. You must ensure that your pairings do not infringe on the rights of others
+> 4. In the event of a dispute, you are responsible for your own legal costs
+> 5. Paired usernames are unique digital assets for entertainment and trading purposes
+> 6. There is no guarantee of value or external utility
+> 7. Names reserves the right to suspend accounts/pairings if there are reports of violations
+> 8. Use this feature responsibly—avoid pairings with well-known brands/figures without explicit permission
+>
+> This is not legal advice. Consult a lawyer for your specific case.
 
-**Constraints:**
-- Cannot delete published stories
-- One story per username
-- Minimum quality threshold
-- Real ownership verification required
+### 6.2 Consent Mechanism
 
-### 3.2 Pair Mechanism
+**Self-Pairing**: Implicit consent (user owns both usernames)
 
-**Self-Pairing Only:**
-```
-Prerequisites:
-- 2+ verified accounts
-- Different platforms
-- Wallet connected
+**Cross-Pairing**:
+- User must enable "Open for Pairing" toggle
+- Explicit opt-in required
+- Disclaimer warns about obtaining consent
+- Platform recommends direct communication (DM, private chat)
+- User assumes responsibility for permissions
 
-Process:
-1. Select Account 1 (e.g., Base)
-2. Select Account 2 (e.g., Farcaster)
-3. Preview: username1×username2
-4. Accept disclaimer
-5. Pay gas fee
-6. Mint paired username NFT
-7. Starting price: 0.7 USDC
-```
+### 6.3 Content Moderation
 
-**Example:**
-```
-User has:
--  Base username -> B1
--  Farcaster username ->F1
+**Automated**:
+- 490-word limit enforcement
+- No malicious code in usernames
+- USDC transfer validation
 
-Pairs into:
-- B1xF1 (Unique Asset)
-```
-
-**Security:**
-- Both accounts must belong to user
-- Verification checked on-chain
-- Immutable once minted
-- Disclaimer accepted
-
-### 3.3 Trading Mechanism
-
-**Listing:**
-```typescript
-function listForSale(tokenId, price) {
-    require(price >= 0.7 USDC, "Below minimum");
-    require(ownerOf(tokenId) == msg.sender);
-    
-    pairedUsername.forSale = true;
-    pairedUsername.currentPrice = price;
-}
-```
-
-**Buying:**
-```typescript
-function buyPairedUsername(tokenId) {
-    // 1. Approve USDC spending
-    USDC.approve(contract, price);
-    
-    // 2. Calculate fees
-    platformFee = price * 1% = 0.01 USDC
-    sellerAmount = price - platformFee
-    
-    // 3. Transfer USDC
-    USDC.transfer(seller, sellerAmount);
-    USDC.transfer(treasury, platformFee);
-    
-    // 4. Transfer NFT
-    transferFrom(seller, buyer, tokenId);
-}
-```
-
-**Market-Driven Pricing:**
-```
-Popular pairs: Can reach 100+ USDC
-Average pairs: 1-10 USDC
-New pairs: 0.7 USDC (floor)
-```
+**Manual**:
+- Report abuse feature (planned)
+- Trademark dispute resolution (planned)
+- Community moderation (planned)
 
 ---
 
-## 5. User Journey
+## 7. Security Considerations
 
-### 5.1 New User Onboarding
+### 7.1 Smart Contract Security
 
-**Day 1: Discover**
-```
-1. Visit Names App
-2. Read about concept
-3. Connect wallet
-4. Explore existing stories
-```
+- OpenZeppelin libraries for ERC-721 standard
+- Reentrancy guards on all state-changing functions
+- Access control for administrative functions
+- Pausable in case of emergency
+- Audited before mainnet deployment (recommended)
 
-**Day 2: Participate**
-```
-1. Verify username (Base/Farcaster/Zora)
-2. Write first story
-3. Publish on-chain
-4. Receive first appreciation
-```
+### 7.2 Frontend Security
 
-**Day 3: Pair**
-```
-1. Verify second platform
-2. Create paired username
-3. Mint as NFT (pay gas)
-4. List for trade (optional)
-```
+- Input sanitization (usernames, stories)
+- XSS protection
+- Rate limiting on API endpoints
+- Secure wallet connections (OnchainKit)
 
-### 5.2 Power User Journey
+### 7.3 User Security
 
-**Week 1-4: Build**
-- Write multiple stories
-- Pair various usernames
-- Build following
-- Engage community
-
-**Month 2+: Trade**
-- Buy undervalued pairs
-- Sell popular combinations
-- Collect trading fees
-- Earn passive income
+- Self-custody wallets (MetaMask, Coinbase Wallet)
+- Sign messages, never share private keys
+- Transaction previews before signing
+- Clear warnings for irreversible actions
 
 ---
 
-## 6. Security & Compliance
-
-### 6.1 Smart Contract Security
-
-**Best Practices:**
-- OpenZeppelin libraries
-- Reentrancy guards
-- Access control patterns
-- Event logging
-
-**Audit Status:**
-- Code review: Complete
-- Security patterns: Implemented
-- Test coverage: 90%+
-- Mainnet deployment: Verified
-
-### 6.2 User Safety
-
-**Disclaimer System:**
-- Legal protection built-in
-- User accepts responsibility
-- No platform liability
-- Clear terms of use
-
-**Key Points:**
-1. No official affiliation
-2. User bears legal costs
-3. Digital asset nature
-4. Suspension rights reserved
-5. Responsible use required
-6. Gas fees paid by user
-
-### 6.3 Data Privacy
-
-**On-Chain Data:**
-- Wallet addresses (public)
-- Usernames (public)
-- Stories (public)
-- Trading history (public)
-
-**Off-Chain Data:**
-- Email: Not collected
-- Personal info: Not stored
-- IP addresses: Not logged
-- Analytics: Anonymous only
-
----
-
-## 7. Roadmap
+## 8. Roadmap
 
 ### Phase 1: MVP (Current)
-- ✅ Write stories
-- ✅ Username verification
-- ✅ Pair usernames
-- ✅ Basic trading
-- ✅ Smart contract deployed
+- ✅ Write and publish username stories
+- ✅ Send USDC appreciation (gasless)
+- ✅ Pair usernames (self + cross)
+- ✅ Mini trading terminal
+- ✅ Smart contract deployment (mainnet)
 
-### Phase 2: Enhancement (Q2 2026)
-- [ ] Advanced trading features
-- [ ] User profiles
-- [ ] Story collections
-- [ ] Social features
-- [ ] Mobile responsive optimization
+### Phase 2: Growth (Q2 2026)
+- [ ] Enhanced trading features (limit orders, history)
+- [ ] User profiles and reputation
+- [ ] Leaderboards (top stories, traders)
+- [ ] Mobile-responsive improvements
+- [ ] Smart contract audit
 
-### Phase 3: Scale (Q3 2026)
-- [ ] Leaderboards
-- [ ] Referral system
-- [ ] API access
-- [ ] Developer tools
-- [ ] Partnership integrations
+### Phase 3: Community (Q3 2026)
+- [ ] Community governance (DAO)
+- [ ] Report and moderation system
+- [ ] Collections and curation
+- [ ] Referral rewards
+- [ ] Analytics dashboard
 
-### Phase 4: Ecosystem (Q4 2026)
-- [ ] Governance token
-- [ ] DAO formation
-- [ ] Community grants
-- [ ] Cross-chain expansion
-- [ ] Mobile native apps
-
----
-
-## 8. Market Analysis
-
-### 8.1 Target Audience
-
-**Primary:**
-- Web3 enthusiasts
-- Content creators
-- NFT collectors
-- Base ecosystem users
-
-**Secondary:**
-- Digital identity researchers
-- Philosophy enthusiasts
-- Traders and speculators
-- Cross-platform users
-
-### 8.2 Competitive Landscape
-
-**Direct Competitors:**
-- None (unique niche)
-
-**Indirect Competitors:**
-- Medium (storytelling)
-- ENS (identity)
-- NFT marketplaces (trading)
-- Social networks (engagement)
-
-**Differentiation:**
-- Combines storytelling + trading
-- Philosophy-focused
-- Base-native
-- Cross-platform identity
+### Phase 4: Expansion (Q4 2026)
+- [ ] Cross-chain support (Optimism, Arbitrum)
+- [ ] API for third-party integrations
+- [ ] Username verification badges
+- [ ] Social features (follow, discover)
+- [ ] Mobile app (iOS, Android)
 
 ---
 
 ## 9. Token Economics (Future)
 
-**Note:** No token currently. Future considerations:
+### 9.1 No Token (Currently)
 
-**Potential $NAMES Token:**
-```
-Utility:
+Names operates without a native token. All transactions use:
+- **USDC** for appreciation and trading
+- **ETH** for gas fees (or gasless via Paymaster)
+
+### 9.2 Potential Future Token
+
+If community votes for tokenization:
+- **$NAMES** utility token
+- Staking for reduced fees
 - Governance rights
-- Platform fee discounts
-- Premium features access
 - Creator rewards
-
-Distribution:
-- Community: 40%
-- Team: 20%
-- Treasury: 20%
-- Liquidity: 10%
-- Advisors: 10%
-
-Vesting:
-- Team: 4 years, 1-year cliff
-- Advisors: 2 years
-- Community: Gradual unlock
-```
+- Liquidity mining
 
 ---
 
-## 10. Risk Factors
+## 10. Comparison with Alternatives
 
-### 10.1 Technical Risks
+| Feature | Names | ENS | Farcaster | NFT Marketplaces |
+|---------|-------|-----|-----------|------------------|
+| Username Stories | ✅ | ❌ | Limited | ❌ |
+| Direct Creator Rewards | ✅ | ❌ | ❌ | ✅ |
+| Gasless Transactions | ✅ | ❌ | ❌ | ❌ |
+| Username Pairing | ✅ | ❌ | ❌ | ❌ |
+| Built on Base | ✅ | ❌ | ✅ | Varies |
+| Trading Terminal | ✅ | ❌ | ❌ | ✅ |
 
-**Smart Contract Bugs:**
-- Mitigation: Audits, testing, gradual rollout
-- Severity: High
-- Probability: Low
-
-**Blockchain Congestion:**
-- Mitigation: L2 usage (Base)
-- Severity: Medium
-- Probability: Low
-
-### 10.2 Market Risks
-
-**Low Adoption:**
-- Mitigation: Marketing, partnerships
-- Severity: High
-- Probability: Medium
-
-**Regulatory Changes:**
-- Mitigation: Legal compliance, adaptability
-- Severity: Medium
-- Probability: Low
-
-### 10.3 Operational Risks
-
-**Platform Sustainability:**
-- Mitigation: Multiple revenue streams
-- Severity: Medium
-- Probability: Low
-
-**Competition:**
-- Mitigation: First-mover advantage, unique features
-- Severity: Medium
-- Probability: Medium
+**Key Differentiators**:
+1. **Philosophy-First**: Focus on the story, not just the name
+2. **Gasless Appreciation**: Readers don't pay gas fees
+3. **Pairing Mechanism**: Create composite identities
+4. **Integrated Trading**: No need for external marketplaces
 
 ---
 
-## 11. Team & Governance
+## 11. Risks and Mitigation
 
-### 11.1 Current Structure
+### 11.1 Smart Contract Risks
+- **Risk**: Bugs, exploits, hacks
+- **Mitigation**: Audits, bug bounties, insurance
 
-**Builder:**
-- Solo founder/developer
-- Full-stack implementation
-- Community-driven
+### 11.2 Regulatory Risks
+- **Risk**: Securities laws, trademark disputes
+- **Mitigation**: Legal disclaimers, KYC (if needed)
 
-**Future:**
-- Expand core team
-- Advisory board
-- Community moderators
-- DAO governance
+### 11.3 Market Risks
+- **Risk**: Low liquidity, price volatility
+- **Mitigation**: Treasury liquidity provision, fee adjustments
 
-### 11.2 Governance Model
-
-**Current: Centralized**
-- Builder makes decisions
-- Community feedback valued
-- Transparent development
-
-**Future: Decentralized**
-- Token-based voting
-- Community proposals
-- On-chain execution
-- Treasury management
+### 11.4 Adoption Risks
+- **Risk**: Low user engagement
+- **Mitigation**: Marketing, partnerships, incentives
 
 ---
 
 ## 12. Conclusion
 
-Names App represents a unique intersection of philosophy, identity, and economics in the Web3 space. By valuing username stories and enabling trading, we create a new paradigm for digital identity monetization.
+Names reimagines usernames as valuable digital assets rooted in personal philosophy. By combining storytelling, direct creator rewards, NFT innovation, and frictionless trading, Names creates a new paradigm for digital identity ownership.
 
-### Key Takeaways:
+**Vision**: Every username has a story. Every story has value. Every value is tradeable.
 
-1. **Philosophical Foundation:** 7×7×10 = 490 words limit
-2. **Self-Pairing Mechanism:** Unique digital asset creation
-3. **Base Ecosystem:** Native L2 advantages
-4. **Economic Sustainability:** Multiple revenue streams
-5. **User Empowerment:** Creators earn from their stories
+**Mission**: Empower creators to monetize their digital identity stories and enable collectors to discover and trade unique username assets.
 
-### Vision
-
-To become the definitive platform where username philosophy meets value, enabling millions to share their digital identity stories and trade them as meaningful assets.
+**Join us in building the future of username philosophy on Base.**
 
 ---
 
-## References
+## Appendix
 
-- Base Documentation: https://docs.base.org
-- Farcaster Protocol: https://docs.farcaster.xyz
-- Zora Network: https://docs.zora.co
-- OnchainKit: https://onchainkit.xyz
-- ERC721 Standard: https://eips.ethereum.org/EIPS/eip-721
+### A. Technical Specifications
 
----
+**Base Network**:
+- Chain ID: 8453 (mainnet), 84532 (testnet)
+- Block Time: ~2 seconds
+- Gas Token: ETH
+- Stablecoin: USDC (0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913)
 
-## Appendix A: Technical Specifications
+**Smart Contracts** (Mainnet):
+- UsernameNFT: 0xD3F182486C011463446452Bc32d30B965921C521
+- Trading: TBD (post-audit)
+- Treasury: TBD (multisig)
 
-**Smart Contract:**
-- Network: Base Mainnet (Chain ID: 8453)
-- Contract Address: [Deployed Address]
-- Language: Solidity 0.8.20
-- Standard: ERC721 (NFT)
 
-**Frontend:**
-- Framework: Next.js 16
-- Language: TypeScript
-- Styling: Tailwind CSS 4
-- Wallet: OnchainKit
+### B. Contact & Resources
 
-**Database:**
-- ORM: Prisma 7
-- Database: PostgreSQL
-- Hosting: Vercel
+- **Website**: https://names-app-seven.vercel.app
+- **GitHub**: https://github.com/basefortyblock-max/NamesApp
+- **Twitter**: @fortycrypto
+- **Farcaster**: @baseforty
+- **Email**: basefortyblock@gmail.com
 
----
+### C. Acknowledgments
 
-**For more information, visit: https://names-app-seven.vercel.app**
-
-**Contact: Twitter @fortycrypto**
+Built with:
+- Base by Coinbase
+- OnchainKit
+- OpenZeppelin
+- Next.js (Vercel)
+- Prisma
 
 ---
 
-*Names App - Where Philosophy Meets Value* 🎭
+**© 2026 Names App. Open source under MIT License.**

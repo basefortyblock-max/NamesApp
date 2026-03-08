@@ -3,12 +3,20 @@ import { ImageResponse } from 'next/og'
 
 export const runtime = 'edge'
 
+async function fetchStory(id: string) {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  const res = await fetch(`${baseUrl}/api/stories/${id}`)
+  if (!res.ok) throw new Error('Story not found')
+  return res.json()
+}
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   // Fetch story data
-  const story = await fetchStory(params.id)
+  const story = await fetchStory(id)
   
   // Return Frame metadata
   return new ImageResponse(

@@ -4,9 +4,10 @@ import { prisma } from '@/lib/prisma'
 // Route for trading paired usernames
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { from, type, price, txHash } = await request.json()
     
     // Validation
@@ -35,7 +36,7 @@ export async function POST(
 
     // Check if paired username exists
     const pairedUsername = await prisma.pairedUsername.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: {
         id: true,
         currentPrice: true,
@@ -55,7 +56,7 @@ export async function POST(
     // Create trade
     const trade = await prisma.trade.create({
       data: {
-        pairedUsernameId: params.id,
+        pairedUsernameId: id,
         from,
         type,
         price,
@@ -89,7 +90,7 @@ export async function POST(
 
     // Apply updates
     await prisma.pairedUsername.update({
-      where: { id: params.id },
+      where: { id },
       data: updateData,
     })
 
@@ -114,12 +115,13 @@ export async function POST(
 // GET - Get trade history for a paired username
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const trades = await prisma.trade.findMany({
       where: {
-        pairedUsernameId: params.id,
+        pairedUsernameId: id,
         status: 'completed',
       },
       orderBy: {

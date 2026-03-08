@@ -1,276 +1,328 @@
 # Names App - Philosophy Behind Your Username
 
-**Share and trade username philosophies on Base**
-
-Names is a decentralized application on Base L2 that lets you write stories about your usernames, pair them into tradeable digital assets, and earn from your creativity.
+**Share, earn, and trade username philosophies on Base**
 
 ---
 
 ## 🎯 What is Names?
 
-Names App is where **usernames meet philosophy and trading**. Every username has a story - Names gives you a platform to share yours and potentially monetize it.
+Names is a decentralized application on Base L2 where **usernames become valuable digital assets**. Share the philosophical story behind your username, receive USDC appreciation, pair usernames into tradeable NFTs, and trade them on-chain.
 
-### Core Concept
+### Core Features
 
-- **Write** philosophical stories (up to 490 words) about your username
-- **Pair** usernames from different platforms into unique digital assets
-- **Trade** paired usernames as on-chain assets on Base
-- **Earn** from appreciation and trading fees
-
----
-
-## ✨ Key Features
-
-### 1. **Write Your Philosophy**
-Share the story behind your username. Why did you choose it? What does it mean to you?
-
-- Maximum 490 words (7×7×10 philosophy)
-- Verify ownership via Base, Farcaster, or Zora
-- Stories are permanent - cannot be deleted once published
-- Receive appreciation (USDC) from readers
-
-### 2. **Pair Usernames**
-Combine your usernames from different platforms into unique paired assets.
-
-- Self-pairing: Connect your own verified accounts
-- Format: `username1×username2`
-- Minted as digital assets on Base blockchain
-- Starting price: 0.7 USDC
-
-### 3. **Trade & Earn**
-Paired usernames become tradeable assets with real value.
-
-- List your paired username for sale
-- Buy others' paired usernames
+✨ **Write** — Publish the philosophy behind your username (max 490 words)  
+💰 **Earn** — Receive USDC appreciation from readers (gasless for them!)  
+🔗 **Pair** — Combine usernames into unique NFT assets  
+📈 **Trade** — Buy and sell paired username NFTs
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Quick Start
 
-### Prerequisites
+### For Users
 
-- MetaMask or Coinbase Wallet
-- Some ETH on Base network (for gas fees)
-- Username on Base, Farcaster, or Zora
+1. **Visit**: https://names-app-seven.vercel.app
+2. **Connect Wallet**: MetaMask, Coinbase Wallet, or WalletConnect
+3. **Write**: Share your username philosophy
+4. **Earn**: Receive appreciation from readers
 
-### Quick Start
+### For Developers
 
-1. **Connect Wallet**
-```
-   Visit: https://names-app-seven.vercel.app
-   Click "Connect Wallet"
-```
+```bash
+# Clone repository
+git clone https://github.com/basefortyblock-max/NamesApp.git
+cd NamesApp
 
-2. **Verify Your Username**
-```
-   Go to Write page
-   Select platform (Base/Farcaster/Zora)
-   Verify ownership
-```
+# Install dependencies
+npm install
 
-3. **Write Your Story**
-```
-   Write about your username (up to 490 words)
-   Publish to blockchain
-```
+# Set up environment variables
+cp .env.example .env.local
+# Edit .env.local with your credentials
 
-4. **Pair Usernames (Optional)**
-```
-   Go to Pair page
-   Select 2 verified accounts
-   Mint paired username (pay gas for it)
+# Set up database
+npx prisma generate
+npx prisma db push
+
+# Run development server
+npm run dev
 ```
 
-5. **Trade (Optional)**
-```
-   List paired username for sale
-   Or buy from others
-```
+Open [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## 🏗️ How It Works
+## 📝 How It Works
 
-### Write Flow
+### 1. Write Your Philosophy
+
 ```
-1. Connect wallet
-2. Select platform (Base/Farcaster/Zora)
-3. Enter username
-4. Verify ownership:
-   - Base: Sign message (SIWE)
-   - Farcaster: API verification
-   - Zora: ENS resolution
-5. Write story (max 490 words)
-6. Publish (record on-chain)
-7. Receive appreciation from readers
+Connect Wallet → Enter Username → Sign Message → Write Story (490 words max) → Publish
 ```
 
-### Pair Flow
+- **One wallet, unlimited usernames**: Publish stories for multiple usernames
+- **Wallet verification**: Simple signature verification (no platform-specific OAuth)
+- **Permanent publication**: Stories cannot be deleted once published
+- **Base price**: All stories start at 0.7 USDC
+
+### 2. Receive Appreciation
+
 ```
-1. Connect wallet
-2. View your verified accounts
-3. Select 2 accounts from different platforms
-4. Preview paired username
-5. Accept disclaimer
-6. Mint via smart contract (pay gas for it)
-7. Choose: Write story OR Trade
+Reader discovers story → Sends USDC (min 0.7) → No gas fees (Paymaster) → You earn!
 ```
 
-### Trading Flow
+- **Gasless for readers**: Coinbase CDP Paymaster sponsors transactions
+- **Direct payments**: USDC goes straight to your wallet
+- **Price appreciation**: Story value increases by 5% of each appreciation
+- **No platform fee**: 100% of appreciation goes to you
+
+### 3. Pair Usernames
+
 ```
-1. List paired username for sale
-2. Set price (minimum 0.7 USDC)
-3. Buyer approves USDC
-4. Buyer purchases
+Select 2 usernames → Review disclaimer → Mint NFT → Choose: Write Story OR Trade
 ```
+
+**Self-Pairing**: Combine 2 of your own usernames  
+**Cross-Pairing**: Pair with another user's username (consent required)
+
+- **You pay gas**: Smart contract minting requires gas fees
+- **Enable/Disable**: Toggle whether others can pair with your username
+- **Disclaimer**: Important legal notice before minting
+- **NFT Format**: username1×username2 (e.g., "SatoshiDreamer×CryptoPoet")
+
+### 4. Trade NFTs
+
+```
+List NFT → Set Price → Buyer purchases → 1% fee to treasury → Profit!
+```
+
+- **Base price**: 0.7 USDC minimum
+- **Price discovery**: Free market determines value
+- **Trading pairs**: USERNAME/USDC format
+- **Revenue**: 1% fee goes to treasury for platform sustainability
 
 ---
 
-## 💰 Revenue Model For Creators
+## 🏗️ Architecture
 
-### Everyone
-- **Story Appreciation**: Readers send USDC
-- **Trading Profits**: Buy low, sell high
-- **Value Accumulation**: Stories with value attached
+### Tech Stack
 
----
-
-## 🔧 Tech Stack
-
-- **Frontend**: Next.js 16, React 19, TypeScript
-- **Styling**: Tailwind CSS
+- **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS
+- **Wallet**: OnchainKit (Coinbase), wagmi v2, viem
 - **Blockchain**: Base L2 (Ethereum)
-- **Wallet**: OnchainKit (Coinbase)
-- **Smart Contracts**: Solidity, Foundry
-- **Database**: Prisma + PostgreSQL
-- **Deployment**: Vercel
+- **Smart Contracts**: Solidity, ERC-721 (NFT)
+- **Database**: PostgreSQL, Prisma ORM
+- **Gasless**: Coinbase CDP Paymaster
+- **Deployment**: Vercel (frontend), Base (contracts)
+
+### Smart Contracts
+
+**UsernameNFT** (ERC-721):
+- Mint paired username NFTs
+- Transfer ownership
+- Query metadata
+
+**Trading**:
+- List NFTs for sale
+- Execute trades
+
+**Deployed Contracts**:
+- Mainnet: 0xD3F182486C011463446452Bc32d30B965921C521
 
 ---
 
-## 🛡️ Security & Legal
+## 💰 Economic Model
+
+### Revenue for Creators
+
+| Action | Revenue | Fee |
+|--------|---------|-----|
+| Story Appreciation | 100% to creator | 0% |
+| NFT Minting | 99% to creator | 1% to treasury |
+| NFT Trading | 99% to seller | 1% to treasury |
+
+### Gasless Transactions
+
+- **Send Appreciation**: ✅ Gasless (sponsored by Paymaster)
+- **Publish Story**: ✅ Gasless (on-chain storage minimal)
+- **Mint NFT**: ❌ User pays gas (smart contract interaction)
+- **Trade NFT**: ❌ User pays gas (smart contract interaction)
+
+---
+
+## 🛡️ Security
 
 ### Smart Contract Security
-- Audited code patterns
-- OpenZeppelin libraries
-- Immutable once deployed
-- Transparent fee collection
+- OpenZeppelin libraries (battle-tested)
+- Reentrancy guards
+- Access control
+- Pausable contracts
+- Audit planned before mainnet launch
 
 ### User Protection
-- Disclaimer modal before pairing
-- Self-pairing only (your accounts)
-- No liability for trademark issues
-- User bears legal responsibility
+- **Disclaimer before minting**: Users acknowledge risks
+- **Consent mechanism**: Cross-pairing requires opt-in
+- **No private keys stored**: Self-custody wallets only
+- **Transaction previews**: Clear warnings before signing
 
-### Privacy
-- On-chain data is public
-- Connect wallet required
-- No personal data stored
-- Wallet addresses visible
+### Legal Disclaimers
+
+> ⚠️ **Important**: Paired usernames are for entertainment and trading purposes. Not affiliated with any platform. Users are responsible for ensuring they don't infringe trademarks or copyrights.
 
 ---
 
-## 🌐 Supported Platforms
+## 📊 Database Schema
 
-### Base Ecosystem Only
+```prisma
+model User {
+  id        String   @id @default(cuid())
+  address   String   @unique
+  stories   Story[]
+  createdAt DateTime @default(now())
+}
 
-1. **Base** 🔵
-   - Coinbase L2 network
-   - Sign-In with Ethereum (SIWE)
-   - Native integration
+model Story {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  username  String
+  platform  String   @default("Base")
+  story     String
+  verified  Boolean  @default(false)
+  price     Float    @default(0.7)
+  createdAt DateTime @default(now())
+}
 
-2. **Farcaster** 🟣
-   - Decentralized social protocol
-   - Warpcast API verification
-   - FID-based authentication
+model PairedUsername {
+  id         String   @id @default(cuid())
+  username1  String
+  username2  String
+  pairedName String
+  owner      String
+  tokenId    Int      @unique
+  price      Float    @default(0.7)
+  listed     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
 
-3. **Zora** ⚫
-   - NFT creation platform
-   - ENS resolution
-   - Address-based verification
+model StoryValue {
+  id        String   @id @default(cuid())
+  storyId   String
+  story     Story    @relation(fields: [storyId], references: [id])
+  from      String
+  amount    Float
+  txHash    String   @unique
+  createdAt DateTime @default(now())
+}
+```
 
 ---
 
-## 📝 Word Limit Examples
+## 🚦 Deployment
 
-**Good Story (490 words):**
-```
-My username "fortycrypto" represents my journey into Web3...
-[470 words of meaningful content]
-...and that's why this name matters to me.
-```
+### Frontend (Vercel)
 
-**Too Short (< 50 words):**
-```
-I like crypto. Made this username. That's it.
+```bash
+# Install Vercel CLI
+npm i -g vercel
+
+# Deploy
+vercel --prod
 ```
 
-**Too Long (> 490 words):**
-```
-System will prevent publishing
+### Smart Contracts (Base)
+
+```bash
+# Install Foundry
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+
+# Deploy to Sepolia testnet
+forge script script/Deploy.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL --broadcast
+
+# Deploy to mainnet (after audit)
+forge script script/Deploy.s.sol --rpc-url $BASE_RPC_URL --broadcast --verify
 ```
 
 ---
 
-## 🚦 Current Status
+## 📖 Documentation
 
-**Version**: 1.0.0 (MVP)
+- **Whitepaper**: [WHITEPAPER.md](./WHITEPAPER.md)
 
-**Live**: https://names-app-seven.vercel.app
+---
 
-**Features**:
-- ✅ Write stories
-- ✅ Username verification (Base/Farcaster/Zora)
-- ✅ Pair usernames
-- ✅ Trading terminal
-- ✅ Story appreciation
-- ✅ Smart contract integration
+## 🗺️ Roadmap
 
-**Coming Soon**:
-- [ ] Enhanced trading features
-- [ ] Story collections
-- [ ] User profiles
-- [ ] Leaderboards
-- [ ] Mobile app
+### ✅ Phase 1: MVP (Current)
+- Write and publish username stories
+- Send USDC appreciation (gasless)
+- Pair usernames (self + cross)
+- Mini trading terminal
+
+### 🔄 Phase 2: Growth (Q2 2026)
+- Enhanced trading features
+- User profiles and reputation
+- Leaderboards
+- Mobile-responsive improvements
+- Smart contract audit
+
+### 📅 Phase 3: Community (Q3 2026)
+- Community governance (DAO)
+- Report and moderation system
+- Collections and curation
+- Referral rewards
+- Analytics dashboard
+
+### 🎯 Phase 4: Expansion (Q4 2026)
+- Cross-chain support
+- API for third-party integrations
+- Username verification badges
+- Social features
+- Mobile app (iOS, Android)
 
 ---
 
 ## 🤝 Contributing
 
-We welcome contributions! Currently focused on:
-- Bug fixes
-- UI/UX improvements
-- Documentation
-- Testing
+We welcome contributions! Please:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ---
 
 ## 📄 License
 
-MIT License - See LICENSE file for details
-
----
-
-## 📞 Support
-
-- **Website**: https://names-app-seven.vercel.app
-- **GitHub**: https://github.com/basefortyblock-max/NamesApp
-- **Twitter**: @fortycrypto
-- **Discord**: [Coming Soon]
+MIT License - see [LICENSE](./LICENSE) file for details
 
 ---
 
 ## 🙏 Acknowledgments
 
 Built on:
-- Base by Coinbase
-- OnchainKit
-- Farcaster Protocol
-- Zora Network
+- [Base](https://base.org) by Coinbase
+- [OnchainKit](https://onchainkit.xyz)
+- [OpenZeppelin](https://openzeppelin.com)
+- [Next.js](https://nextjs.org) by Vercel
+- [Prisma](https://prisma.io)
 
 Special thanks to the Base community for support and feedback.
 
 ---
 
+## 📞 Support
+
+- **Website**: https://names-app-seven.vercel.app
+- **GitHub Issues**: [Report a bug](https://github.com/basefortyblock-max/NamesApp/issues)
+- **Twitter**: [@fortycrypto](https://twitter.com/fortycrypto)
+- **Discord**: Coming soon
+
+---
+
 **Start sharing your username philosophy today! 🎭**
 
-Connect → Verify → Write → Earn
+Connect → Verify → Write → Earn → Trade

@@ -1,6 +1,7 @@
 "use client"
 
-import { ConnectWalletButton } from './connect-wallet-button'
+import { WalletConnect } from "@/components/connect-wallet-button"
+
 
 export function AppHeader() {
   return (
@@ -13,7 +14,7 @@ export function AppHeader() {
           <span className="text-lg font-bold tracking-tight text-foreground">Names</span>
         </div>
 
-        <ConnectWalletButton className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
+        <WalletConnect className="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
       </div>
     </header>
   )

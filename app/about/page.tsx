@@ -13,7 +13,7 @@ import {
   ArrowRight,
   Shield,
 } from "lucide-react"
-import { ConnectWalletButton } from "@/components/connect-wallet-button"
+import { WalletConnect } from "@/components/connect-wallet-button"
 import { useAccount } from "wagmi"
 
 const WHY_REASONS = [
@@ -49,7 +49,7 @@ const HOW_STEPS = [
     icon: PenSquare,
     title: "Type Your Username",
     description:
-      "Enter the username you want to share the philosophy about. It can be from  Base account, Farcaster, Zora.",
+      "Enter the username you'd like to share your philosophy with. This can be your Base account, Farcaster, or any username you like, or you can create your own.",
   },
   {
     step: "02",
@@ -78,7 +78,7 @@ const KEY_FEATURES = [
   {
     icon: Zap,
     title: "Gasless Transactions",
-    description: "No gas fee for you.",
+    description: "When you send USDC as a token of appreciation to a story creator, there is no gas fee for you.",
   },
   {
     icon: DollarSign,
@@ -196,7 +196,9 @@ export default function AboutPage() {
                 <ArrowRight className="h-4 w-4" />
               </Link>
             ) : (
-              <ConnectWalletButton className="inline-flex items-center gap-2 rounded-full bg-primary-foreground px-6 py-2.5 text-base font-semibold text-primary transition-colors hover:bg-primary-foreground/90" />
+              <div className="inline-flex">
+                <WalletConnect />
+              </div>
             )}
           </div>
         </div>

@@ -6,22 +6,16 @@ const MIN_AMOUNT = 0.7
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { from, amount, txHash } = await request.json()
+    const { id } = await params
+    const { from, amount, to, txHash } = await request.json()
     
     // Validation
-    if (!from || amount === undefined) {
+    if (!from || amount === undefined || !to) {
       return NextResponse.json(
-        { error: 'Missing required fields: from, amount' },
-        { status: 400 }
-      )
-    }
-
-    if (!txHash) {
-      return NextResponse.json(
-        { error: 'txHash required for USDC transfer verification' },
+        { error: 'Missing required fields: from, amount, to' },
         { status: 400 }
       )
     }
@@ -35,8 +29,8 @@ export async function POST(
 
     // Verify story exists
     const story = await prisma.story.findUnique({
-      where: { id: params.id },
-      select: { id: true, price: true, userId: true },
+      where: { id },
+      select: { id: true, price: true, userId: true, username: true },
     })
 
     if (!story) {
@@ -46,33 +40,42 @@ export async function POST(
       )
     }
 
-    // TODO: Verify txHash on blockchain (Base network)
-    // In production, verify USDC transfer actually occurred using:
-    // - etherscan API / Alchemy API
-    // - Check tx receipt: from (sender), to (contract/recipient), value (amount)
-    // For now, create record with "pending" status
-    
+    // Verify the 'to' address matches the story creator
+    const storyOwner = await prisma.user.findUnique({
+      where: { id: story.userId },
+      select: { address: true },
+    })
+
+    if (!storyOwner || storyOwner.address.toLowerCase() !== to.toLowerCase()) {
+      return NextResponse.json(
+        { error: 'Recipient address mismatch' },
+        { status: 400 }
+      )
+    }
+
+    // Create value record
+    // txHash will be provided after the transaction completes on frontend
     const value = await prisma.storyValue.create({
       data: {
-        storyId: params.id,
+        storyId: id,
         from,
         amount,
-        txHash,
+        txHash: txHash || `pending-${Date.now()}`, // Temporary placeholder
       },
     })
 
-    // Increase story price slightly based on value received
-    const priceIncrease = amount * 0.05 // 5% of the value increases story price
+    // Increase story price based on value received
+    const priceIncrease = amount * 0.05 // 5% of the appreciation increases story value
     await prisma.story.update({
-      where: { id: params.id },
+      where: { id },
       data: { price: { increment: priceIncrease } },
     })
 
     return NextResponse.json({ 
       success: true, 
       value,
-      message: `Sent ${amount} USDC to @${story.id}`,
-      priceIncrement: priceIncrease,
+      message: `Sent ${amount} USDC to @${story.username}`,
+      newPrice: story.price + priceIncrease,
     }, { status: 201 })
   } catch (error: any) {
     console.error('Send value error:', error)
@@ -87,7 +90,7 @@ export async function POST(
 
     return NextResponse.json(
       { 
-        error: 'Failed to send value',
+        error: 'Failed to process appreciation',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined
       },
       { status: 500 }
@@ -98,16 +101,17 @@ export async function POST(
 // GET - Get value transfers for a story
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { searchParams } = new URL(request.url)
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 10
     const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : 0
 
     // Verify story exists
     const story = await prisma.story.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, price: true },
     })
 
@@ -119,14 +123,14 @@ export async function GET(
     }
 
     const values = await prisma.storyValue.findMany({
-      where: { storyId: params.id },
+      where: { storyId: id },
       orderBy: { createdAt: 'desc' },
       take: limit,
       skip: offset,
     })
 
     const total = await prisma.storyValue.aggregate({
-      where: { storyId: params.id },
+      where: { storyId: id },
       _sum: { amount: true },
       _count: true,
     })
@@ -144,7 +148,7 @@ export async function GET(
     console.error('Get values error:', error)
     return NextResponse.json(
       {
-        error: 'Failed to fetch value transfers',
+        error: 'Failed to fetch appreciation history',
         details: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }

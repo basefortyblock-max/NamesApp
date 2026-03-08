@@ -3,9 +3,10 @@ import { prisma } from '@/lib/prisma'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { address } = await request.json()
     
     if (!address) {
@@ -14,7 +15,7 @@ export async function POST(
 
     // Check if story exists
     const story = await prisma.story.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, likes: true },
     })
 
@@ -28,7 +29,7 @@ export async function POST(
     // For now, increment counter - user can unlike by making another request
     
     const updatedStory = await prisma.story.update({
-      where: { id: params.id },
+      where: { id },
       data: { likes: { increment: 1 } },
     })
 
@@ -49,11 +50,12 @@ export async function POST(
 // GET - Get like count for a story
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const story = await prisma.story.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true, likes: true },
     })
 

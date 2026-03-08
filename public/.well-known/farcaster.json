@@ -9,6 +9,7 @@
     "name": "Names",
     "iconUrl": "https://names-app-seven.vercel.app/icon.png",
     "splashImageUrl": "https://names-app-seven.vercel.app/splash-image.png",
+    "heroImageUrl": "https://names-app-seven.vercel.app/hero-image.png",
     "splashBackgroundColor": "#1a6b3c",
     "homeUrl": "https://names-app-seven.vercel.app",
     "webhookUrl": "https://names-app-seven.vercel.app/api/farcaster/webhook",
@@ -17,11 +18,10 @@
     "screenshotUrls": [],
     "primaryCategory": "social",
     "tags": ["earn","farcaster","baseapp"],
-    "heroImageUrl": "",
     "tagline": "Joy Username",
     "ogTitle": "Publish Simple",
     "ogDescription": "Publish philosophy about why you loves your username.",
-    "ogImageUrl": "",
+    "ogImageUrl": "https://names-app-seven.vercel.app/og-image.png",
     "noindex": true
 
   }

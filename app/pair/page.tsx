@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useAccount, useSignMessage } from "wagmi"
-import { ConnectWalletButton } from "@/components/connect-wallet-button"
+import { WalletConnect } from "@/components/connect-wallet-button"
 import { Wallet, CheckCircle2, AlertCircle, Loader2, Shield, Users, ArrowRight, X } from "lucide-react"
 import { DisclaimerModal } from "@/components/disclaimer-modal"
 
@@ -202,7 +202,7 @@ export default function PairPage() {
           You need to connect your wallet to pair usernames.
         </p>
         <div className="mt-5">
-          <ConnectWalletButton className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground hover:bg-primary/90" />
+          <WalletConnect className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground hover:bg-primary/90" />
         </div>
       </div>
     )

@@ -3,9 +3,8 @@
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAccount } from "wagmi"
-import { ConnectWalletButton } from "@/components/connect-wallet-button"
-import { Sparkles, Heart, Share2, X } from "lucide-react"
-import StoryComments from "@/components/story-comments"
+import { WalletConnect } from "@/components/connect-wallet-button"
+import { Sparkles, DollarSign, X } from "lucide-react"
 
 interface Story {
   id: string
@@ -13,8 +12,6 @@ interface Story {
   platform: string
   story: string
   price: number
-  likes: number
-  shares: number
   verified: boolean
   createdAt: string
   userId: string
@@ -48,48 +45,9 @@ export default function HomePage() {
     }
   }
 
-  async function handleLike(storyId: string) {
-    if (!address) {
-      alert('Please connect wallet to like stories')
-      return
-    }
-
-    try {
-      const response = await fetch(`/api/stories/${storyId}/like`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ address }),
-      })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to like')
-      }
-
-      const data = await response.json()
-      setStories(stories.map(s => 
-        s.id === storyId ? { ...s, likes: data.likes } : s
-      ))
-    } catch (error: any) {
-      alert(`❌ ${error.message}`)
-    }
-  }
-
-  function handleShare(story: Story) {
-    const text = `Check out @${story.username}'s story on Names App!`
-    const url = `${window.location.origin}/?story=${story.id}`
-    
-    if (navigator.share) {
-      navigator.share({ title: `@${story.username}'s Story`, text, url })
-    } else {
-      navigator.clipboard.writeText(url)
-      alert('Link copied to clipboard!')
-    }
-  }
-
   function openValueModal(story: Story) {
     if (!address) {
-      alert('Please connect wallet to send value')
+      alert('Please connect wallet to send appreciation')
       return
     }
     setSelectedStory(story)
@@ -164,7 +122,7 @@ export default function HomePage() {
           <p className="text-sm text-muted-foreground mb-4">
             Connect your wallet to share the philosophy behind your username
           </p>
-          <ConnectWalletButton className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
+          <WalletConnect className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
         </div>
       )}
 
@@ -208,7 +166,7 @@ export default function HomePage() {
               Write Your Story
             </button>
           ) : (
-            <ConnectWalletButton className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
+            <WalletConnect className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
           )}
         </div>
       ) : (
@@ -239,8 +197,6 @@ export default function HomePage() {
                     )}
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <span>{story.platform}</span>
-                    <span>•</span>
                     <span>{new Date(story.createdAt).toLocaleDateString()}</span>
                   </div>
                 </div>
@@ -249,7 +205,7 @@ export default function HomePage() {
                     {story.price.toFixed(2)} USDC
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Starting price
+                    Base price
                   </p>
                 </div>
               </div>
@@ -259,38 +215,18 @@ export default function HomePage() {
                 {story.story}
               </p>
 
-              {/* Story Actions */}
-              <div className="space-y-4">
-                <div className="flex items-center gap-4 pt-4 border-t border-border">
+              {/* Send Value Action */}
+              {address && (
+                <div className="pt-4 border-t border-border">
                   <button 
-                    onClick={() => handleLike(story.id)}
-                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-red-500 transition-colors"
+                    onClick={() => openValueModal(story)}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
                   >
-                    <Heart className="h-4 w-4" />
-                    <span>{story.likes || 0}</span>
+                    <DollarSign className="h-4 w-4" />
+                    Send Appreciation
                   </button>
-                  
-                  <button 
-                    onClick={() => handleShare(story)}
-                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <Share2 className="h-4 w-4" />
-                    <span>Share</span>
-                  </button>
-                  
-                  {address && (
-                    <button 
-                      onClick={() => openValueModal(story)}
-                      className="ml-auto rounded-lg bg-primary px-4 py-1.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-                    >
-                      Send Value
-                    </button>
-                  )}
                 </div>
-
-                {/* Comments Component */}
-                <StoryComments storyId={story.id} address={address} />
-              </div>
+              )}
             </article>
           ))}
         </div>
@@ -302,7 +238,7 @@ export default function HomePage() {
           <div className="w-full max-w-md rounded-xl bg-card border-2 border-border p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-bold text-foreground">
-                Send Value to @{selectedStory.username}
+                Send Appreciation
               </h3>
               <button 
                 onClick={() => setShowValueModal(false)}
@@ -310,6 +246,11 @@ export default function HomePage() {
               >
                 <X className="h-5 w-5" />
               </button>
+            </div>
+
+            <div className="mb-4 p-4 rounded-lg bg-secondary/50">
+              <p className="text-sm text-muted-foreground mb-1">To</p>
+              <p className="text-base font-semibold text-foreground">@{selectedStory.username}</p>
             </div>
 
             <div className="mb-4">
@@ -326,19 +267,14 @@ export default function HomePage() {
                 placeholder="0.7"
               />
               <p className="text-xs text-muted-foreground mt-1">
-                Minimum: 0.7 USDC
+                Minimum: 0.7 USDC • No maximum
               </p>
             </div>
 
-            <div className="rounded-lg bg-secondary/50 p-3 mb-4">
-              <div className="flex justify-between text-sm mb-1">
-                <span className="text-muted-foreground">Amount</span>
-                <span className="font-semibold text-foreground">{valueAmount} USDC</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Recipient</span>
-                <span className="font-medium text-foreground">@{selectedStory.username}</span>
-              </div>
+            <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-3 mb-4">
+              <p className="text-xs text-green-700 dark:text-green-300 font-medium">
+                ⚡ No gas fees — transaction sponsored by Paymaster
+              </p>
             </div>
 
             <button
@@ -346,12 +282,8 @@ export default function HomePage() {
               disabled={sendingValue || parseFloat(valueAmount) < 0.7}
               className="w-full rounded-lg bg-primary py-3 text-base font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {sendingValue ? 'Sending...' : 'Send Value'}
+              {sendingValue ? 'Sending...' : `Send ${valueAmount} USDC`}
             </button>
-
-            <p className="text-xs text-muted-foreground text-center mt-3">
-              💸 This will send USDC from your wallet
-            </p>
           </div>
         </div>
       )}

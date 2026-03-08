@@ -4,16 +4,17 @@ import { prisma } from '@/lib/prisma'
 // GET - Get comments for a story
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { searchParams } = new URL(request.url)
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 20
     const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : 0
 
     // Verify story exists
     const story = await prisma.story.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true },
     })
 
@@ -25,14 +26,14 @@ export async function GET(
     }
 
     const comments = await prisma.comment.findMany({
-      where: { storyId: params.id },
+      where: { storyId: id },
       orderBy: { createdAt: 'desc' },
       take: limit,
       skip: offset,
     })
 
     const total = await prisma.comment.count({
-      where: { storyId: params.id },
+      where: { storyId: id },
     })
 
     return NextResponse.json({
@@ -57,9 +58,10 @@ export async function GET(
 // POST - Add a comment to a story
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const { address, author, text } = await request.json()
     
     // Validation
@@ -86,7 +88,7 @@ export async function POST(
 
     // Verify story exists
     const story = await prisma.story.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: { id: true },
     })
 
@@ -99,7 +101,7 @@ export async function POST(
     
     const comment = await prisma.comment.create({
       data: {
-        storyId: params.id,
+        storyId: id,
         address,
         author,
         text: text.trim(),

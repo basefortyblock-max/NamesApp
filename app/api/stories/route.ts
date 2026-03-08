@@ -22,12 +22,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Too long: ${wordCount}/490 words` }, { status: 400 })
     }
 
+    // Check if THIS user already published THIS username
+    // Other users CAN publish the same username
     const existingStory = await prisma.story.findFirst({
-      where: { username, platform }
+      where: { 
+        userId: user.id,
+        username,
+      }
     })
 
     if (existingStory) {
-      return NextResponse.json({ error: 'Story already exists' }, { status: 400 })
+      return NextResponse.json({ error: 'You already published a story for this username' }, { status: 400 })
     }
 
     const newStory = await prisma.story.create({

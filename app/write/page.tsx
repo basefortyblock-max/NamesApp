@@ -1,18 +1,10 @@
-// app/write/page.tsx 
 "use client"
 
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAccount, useSignMessage } from "wagmi"
-import { ConnectWalletButton } from "@/components/connect-wallet-button"
-import { Wallet, CheckCircle2, AlertCircle, Loader2, Shield } from "lucide-react"
-
-// Only Base, Farcaster, Zora - NO OAuth platforms
-const PLATFORMS = [
-  { value: "Base", label: "Base", icon: "🔵", needsAuth: false },
-  { value: "Farcaster", label: "Farcaster", icon: "🟣", needsAuth: false },
-  { value: "Zora", label: "Zora", icon: "⚫", needsAuth: false },
-]
+import { WalletConnect } from "@/components/connect-wallet-button"
+import { Wallet, CheckCircle2, AlertCircle, Loader2, Shield, Sparkles } from "lucide-react"
 
 export default function WritePage() {
   const { isConnected, address } = useAccount()
@@ -21,7 +13,6 @@ export default function WritePage() {
   const searchParams = useSearchParams()
   
   const [username, setUsername] = useState("")
-  const [platform, setPlatform] = useState("Base")
   const [story, setStory] = useState("")
   const [step, setStep] = useState<"input" | "verify" | "write" | "confirm">("input")
   const [isVerifying, setIsVerifying] = useState(false)
@@ -35,7 +26,6 @@ export default function WritePage() {
     const pairedParam = searchParams?.get('paired')
     if (pairedParam) {
       setUsername(pairedParam)
-      setPlatform("Base") // Paired usernames default to Base
     }
   }, [searchParams])
 
@@ -56,7 +46,7 @@ export default function WritePage() {
           You need to connect your wallet to share your name philosophy.
         </p>
         <div className="mt-5">
-          <ConnectWalletButton className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90" />
+          <WalletConnect className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90" />
         </div>
       </div>
     )
@@ -70,86 +60,13 @@ export default function WritePage() {
     setStep("verify")
     
     try {
-      if (platform === "Base") {
-        // Base: Sign message to verify ownership
-        const message = `Verify ownership of username: ${username}\nAddress: ${address}\nTimestamp: ${Date.now()}`
-        await signMessageAsync({ message })
-        
-        // Save verification
-        await fetch('/api/user/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            address,
-            platform: 'Base',
-            username,
-            verified: true,
-          }),
-        })
-        
-        setIsVerified(true)
-        setTimeout(() => setStep("write"), 800)
-        
-      } else if (platform === "Farcaster") {
-        // Farcaster: Verify via API
-        const response = await fetch('/api/verify/farcaster', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username }),
-        })
-        
-        const data = await response.json()
-        
-        if (!response.ok || !data.verified) {
-          throw new Error('Farcaster username not found')
-        }
-        
-        // Save verification
-        await fetch('/api/user/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            address,
-            platform: 'Farcaster',
-            username,
-            verified: true,
-            platformData: data.user,
-          }),
-        })
-        
-        setIsVerified(true)
-        setTimeout(() => setStep("write"), 800)
-        
-      } else if (platform === "Zora") {
-        // Zora: Verify ENS or address
-        const response = await fetch('/api/verify/zora', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ identifier: username }),
-        })
-        
-        const data = await response.json()
-        
-        if (!response.ok || !data.verified) {
-          throw new Error('Zora profile not found')
-        }
-        
-        // Save verification
-        await fetch('/api/user/verify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            address,
-            platform: 'Zora',
-            username,
-            verified: true,
-            platformData: data.profile,
-          }),
-        })
-        
-        setIsVerified(true)
-        setTimeout(() => setStep("write"), 800)
-      }
+      // Simple wallet signature verification
+      const message = `Verify username ownership: ${username}\nWallet: ${address}\nTimestamp: ${Date.now()}`
+      await signMessageAsync({ message })
+      
+      setIsVerified(true)
+      setTimeout(() => setStep("write"), 800)
+      
     } catch (error: any) {
       setVerificationError(error.message || 'Verification failed')
       setIsVerifying(false)
@@ -170,44 +87,43 @@ export default function WritePage() {
   }
 
   const handleConfirmPublish = async () => {
-  setIsPublishing(true)
-  
-  try {
-    const response = await fetch('/api/stories', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId: address,
-        username: username.trim(),
-        platform,
-        story: story.trim(),
-        verified: isVerified,
-      }),
-    })
+    setIsPublishing(true)
     
-    const data = await response.json()
-    
-    if (!response.ok) {
-      // Show error from API
-      throw new Error(data.error || 'Failed to publish')
+    try {
+      const response = await fetch('/api/stories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: address,
+          username: username.trim(),
+          platform: 'Base', // All usernames are on Base now
+          story: story.trim(),
+          verified: isVerified,
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to publish')
+      }
+      
+      alert('✅ Story published! Starting price: 0.7 USDC')
+      window.location.href = '/'
+      
+    } catch (error: any) {
+      console.error('❌ Error:', error)
+      alert(`❌ ${error.message}`)
+    } finally {
+      setIsPublishing(false)
     }
-    
-    alert('✅ Story published! Starting price: 0.7 USDC')
-    window.location.href = '/'
-    
-  } catch (error: any) {
-    console.error('❌ Error:', error)
-    alert(`❌ ${error.message}`) // This will show "Story already exists"
-  } finally {
-    setIsPublishing(false)
   }
-}
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
-      <h1 className="text-xl font-bold text-foreground">Share Your Name Philosophy</h1>
+      <h1 className="text-xl font-bold text-foreground">Publish Your Username Story</h1>
       <p className="mt-1 text-base text-muted-foreground">
-        Tell the world the charismatic story behind your username.
+        Share the charismatic philosophy behind your username
       </p>
 
       {/* Step indicators */}
@@ -237,6 +153,18 @@ export default function WritePage() {
       {/* Step 1: Username input */}
       {step === "input" && (
         <div className="mt-6 flex flex-col gap-4">
+          <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
+            <div className="flex items-start gap-3">
+              <Sparkles className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+              <div className="text-sm">
+                <p className="font-semibold text-foreground mb-1">One wallet, unlimited usernames</p>
+                <p className="text-muted-foreground">
+                  You can publish multiple username stories from a single wallet. Each username tells a unique story.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div>
             <label htmlFor="username" className="mb-1.5 block text-base font-medium text-foreground">
               Your Username
@@ -245,37 +173,12 @@ export default function WritePage() {
               id="username"
               type="text"
               value={username}
-              onChange={(e) => setUsername(e.target.value.replace('@', ''))}
+              onChange={(e) => setUsername(e.target.value.replace('@', '').trim())}
               placeholder="e.g. SatoshiDreamer (without @)"
               className="w-full rounded-lg border border-input bg-card px-3 py-2.5 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
             />
             <p className="mt-1 text-xs text-muted-foreground">
               Type username without @ symbol
-            </p>
-          </div>
-
-          <div>
-            <label htmlFor="platform" className="mb-1.5 block text-base font-medium text-foreground">
-              Platform
-            </label>
-            <div className="grid grid-cols-3 gap-2">
-              {PLATFORMS.map((p) => (
-                <button
-                  key={p.value}
-                  onClick={() => setPlatform(p.value)}
-                  className={`flex items-center justify-center gap-2 rounded-lg border px-3 py-3 text-sm font-medium transition-colors ${
-                    platform === p.value
-                      ? "border-primary bg-primary/10 text-primary"
-                      : "border-border bg-card text-muted-foreground hover:border-primary/40"
-                  }`}
-                >
-                  <span className="text-lg">{p.icon}</span>
-                  <span>{p.label}</span>
-                </button>
-              ))}
-            </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Only Base ecosystem platforms (Base, Farcaster, Zora)
             </p>
           </div>
 
@@ -310,13 +213,11 @@ export default function WritePage() {
             <>
               <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
               <p className="text-base text-muted-foreground">
-                Verifying <span className="font-semibold text-foreground">@{username}</span> on {platform}...
+                Verifying <span className="font-semibold text-foreground">@{username}</span>
               </p>
-              {platform === "Base" && (
-                <p className="text-sm text-muted-foreground">
-                  Please sign the message in your wallet
-                </p>
-              )}
+              <p className="text-sm text-muted-foreground">
+                Please sign the message in your wallet
+              </p>
             </>
           ) : (
             <>
@@ -335,39 +236,42 @@ export default function WritePage() {
             <div>
               <p className="text-base font-medium text-foreground">@{username}</p>
               <p className="text-sm text-muted-foreground">
-                {platform} · Verified
+                Verified by wallet signature
               </p>
             </div>
           </div>
 
           <div>
             <label htmlFor="story" className="mb-1.5 block text-base font-medium text-foreground">
-              Your Name Philosophy
+              Your Username Philosophy
             </label>
             <textarea
               id="story"
               value={story}
               onChange={(e) => setStory(e.target.value)}
-              placeholder="Tell the world why you chose this name. Is it historical? Does it bring good luck, blessings, health? What is the charismatic philosophy behind it?"
+              placeholder="Why did you choose this username? Does it carry historical significance, bring good fortune, represent health, or embody a charismatic philosophy? Share the meaningful story that makes this name uniquely yours."
               rows={10}
               className="w-full resize-none rounded-lg border border-input bg-card px-3 py-2.5 text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
             />
             <div className="mt-1 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Write in any language you prefer.</p>
+              <p className="text-sm text-muted-foreground">Maximum 490 words</p>
               <p className={`text-sm font-medium ${wordCount > 490 ? 'text-destructive' : 'text-muted-foreground'}`}>
                 {wordCount}/490 words
               </p>
             </div>
           </div>
 
-          <div className="flex items-start gap-2 rounded-lg border border-border bg-accent/40 px-3 py-2.5">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <div className="text-sm leading-relaxed text-muted-foreground">
-              <p>
-                Your story starts at <span className="font-semibold text-foreground">0.7 USDC</span>. 
-                The more users appreciate your story, the higher the price grows.
+          <div className="flex items-start gap-2 rounded-lg border-2 border-primary/30 bg-primary/5 px-3 py-2.5">
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+            <div className="text-sm leading-relaxed">
+              <p className="font-semibold text-foreground mb-1">
+                Your story is high-value content
               </p>
-              <p className="mt-1">No gas fees.</p>
+              <p className="text-muted-foreground">
+                Base price starts at <span className="font-semibold text-foreground">0.7 USDC</span>. 
+                When readers appreciate your philosophy and send value, you earn directly. 
+                Share wisdom, inspire others, and get rewarded.
+              </p>
             </div>
           </div>
 
@@ -393,7 +297,7 @@ export default function WritePage() {
               </div>
               <div>
                 <p className="text-base font-semibold text-foreground">@{username}</p>
-                <p className="text-sm text-muted-foreground">{platform} · Verified</p>
+                <p className="text-sm text-muted-foreground">Verified by wallet</p>
               </div>
             </div>
             <p className="mt-3 text-base leading-relaxed text-foreground">{story}</p>
@@ -402,9 +306,14 @@ export default function WritePage() {
             </div>
           </div>
 
-          <p className="text-center text-xs text-muted-foreground">
-            Please confirm you want to publish this philosophy. This action cannot be undone.
-          </p>
+          <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
+            <p className="text-sm text-amber-900 dark:text-amber-200 font-medium">
+              ⚠️ This action cannot be undone
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+              Once published, your story will be permanently saved on-chain
+            </p>
+          </div>
 
           <div className="flex gap-3">
             <button
@@ -434,4 +343,3 @@ export default function WritePage() {
     </div>
   )
 }
-

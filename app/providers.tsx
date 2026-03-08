@@ -7,23 +7,28 @@ import { RainbowKitProvider } from "@rainbow-me/rainbowkit"
 import "@rainbow-me/rainbowkit/styles.css"
 import { wagmiConfig } from "@/lib/wagmi"
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-})
+// Suppress errors in dev
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+  const originalError = console.error
+  console.error = (...args) => {
+    const errorStr = args[0]?.toString?.() || ''
+    if (errorStr.includes('Failed to fetch') || errorStr.includes('Analytics')) {
+      return
+    }
+    originalError.apply(console, args)
+  }
+}
+
+const queryClient = new QueryClient()
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <WagmiProvider config={wagmiConfig}>
-      <RainbowKitProvider>
-        <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={queryClient}>
+        <RainbowKitProvider>
           {children}
-        </QueryClientProvider>
-      </RainbowKitProvider>
+        </RainbowKitProvider>
+      </QueryClientProvider>
     </WagmiProvider>
   )
 }

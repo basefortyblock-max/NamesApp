@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { WalletConnect } from "@/components/connect-wallet-button"
+<WalletConnect />
 import { Search, Filter, CheckCircle2, ArrowRight } from "lucide-react"
 
 interface User {
