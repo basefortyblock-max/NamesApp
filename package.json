@@ -17,7 +17,6 @@
   "dependencies": {
     "@farcaster/auth-kit": "^0.8.2",
     "@hookform/resolvers": "^3.10.0",
-    "@next/swc-win32-x64-msvc": "^16.1.6",
     "@prisma/adapter-pg": "^7.4.2",
     "@prisma/client": "^7.4.0",
     "@radix-ui/react-accordion": "1.2.2",
@@ -82,7 +81,6 @@
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.27",
     "dotenv": "^17.3.1",
-    "lightningcss-win32-x64-msvc": "^1.31.1",
     "postcss": "^8.5.6",
     "prisma": "^7.4.0",
     "tailwindcss": "^3.4.19",
