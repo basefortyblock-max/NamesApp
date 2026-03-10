@@ -33,9 +33,10 @@ async function fetchStory(id: string): Promise<Story> {
   }
 }
 
-export async function generateMetadata({ params }: { params: { id: string } }) {
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   try {
-    const story = await fetchStory(params.id)
+    const story = await fetchStory(id)
     
     return {
       title: `${story.username}'s Philosophy | Names`,
@@ -43,15 +44,15 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
       openGraph: {
         title: `${story.username}'s Philosophy`,
         description: story.story.substring(0, 200),
-        images: [`/story/${params.id}/og-image`],
+        images: [`/story/${id}/og-image`],
       },
       // Farcaster Frame metadata
       other: {
         'fc:frame': 'vNext',
-        'fc:frame:image': `https://names-app.vercel.app/story/${params.id}/frame`,
+        'fc:frame:image': `https://names-app.vercel.app/story/${id}/frame`,
         'fc:frame:button:1': 'Read Full Story',
         'fc:frame:button:1:action': 'link',
-        'fc:frame:button:1:target': `https://names-app.vercel.app/story/${params.id}`,
+        'fc:frame:button:1:target': `https://names-app.vercel.app/story/${id}`,
         'fc:frame:button:2': 'Send Value',
         'fc:frame:button:2:action': 'post',
         'fc:frame:post_url': `https://names-app.vercel.app/api/farcaster/value`,
@@ -65,11 +66,12 @@ export async function generateMetadata({ params }: { params: { id: string } }) {
   }
 }
 
-export default async function StoryPage({ params }: { params: { id: string } }) {
+export default async function StoryPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   let story: Story
   
   try {
-    story = await fetchStory(params.id)
+    story = await fetchStory(id)
   } catch (error) {
     notFound()
   }
