@@ -99,8 +99,6 @@ List NFT → Set Price → Buyer purchases → 1% fee to treasury → Profit!
 - **Base price**: 0.7 USDC minimum
 - **Price discovery**: Free market determines value
 - **Trading pairs**: USERNAME/USDC format
-- **Revenue**: 1% fee goes to treasury for platform sustainability
-
 ---
 
 ## 🏗️ Architecture
@@ -108,7 +106,7 @@ List NFT → Set Price → Buyer purchases → 1% fee to treasury → Profit!
 ### Tech Stack
 
 - **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS
-- **Wallet**: OnchainKit (Coinbase), wagmi v2, viem
+- **Wallet**: RainbowKit (Coinbase), wagmi v2, viem
 - **Blockchain**: Base L2 (Ethereum)
 - **Smart Contracts**: Solidity, ERC-721 (NFT)
 - **Database**: PostgreSQL, Prisma ORM
@@ -168,81 +166,6 @@ List NFT → Set Price → Buyer purchases → 1% fee to treasury → Profit!
 ### Legal Disclaimers
 
 > ⚠️ **Important**: Paired usernames are for entertainment and trading purposes. Not affiliated with any platform. Users are responsible for ensuring they don't infringe trademarks or copyrights.
-
----
-
-## 📊 Database Schema
-
-```prisma
-model User {
-  id        String   @id @default(cuid())
-  address   String   @unique
-  stories   Story[]
-  createdAt DateTime @default(now())
-}
-
-model Story {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  username  String
-  platform  String   @default("Base")
-  story     String
-  verified  Boolean  @default(false)
-  price     Float    @default(0.7)
-  createdAt DateTime @default(now())
-}
-
-model PairedUsername {
-  id         String   @id @default(cuid())
-  username1  String
-  username2  String
-  pairedName String
-  owner      String
-  tokenId    Int      @unique
-  price      Float    @default(0.7)
-  listed     Boolean  @default(false)
-  createdAt  DateTime @default(now())
-}
-
-model StoryValue {
-  id        String   @id @default(cuid())
-  storyId   String
-  story     Story    @relation(fields: [storyId], references: [id])
-  from      String
-  amount    Float
-  txHash    String   @unique
-  createdAt DateTime @default(now())
-}
-```
-
----
-
-## 🚦 Deployment
-
-### Frontend (Vercel)
-
-```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy
-vercel --prod
-```
-
-### Smart Contracts (Base)
-
-```bash
-# Install Foundry
-curl -L https://foundry.paradigm.xyz | bash
-foundryup
-
-# Deploy to Sepolia testnet
-forge script script/Deploy.s.sol --rpc-url $BASE_SEPOLIA_RPC_URL --broadcast
-
-# Deploy to mainnet (after audit)
-forge script script/Deploy.s.sol --rpc-url $BASE_RPC_URL --broadcast --verify
-```
 
 ---
 
