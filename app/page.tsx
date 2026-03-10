@@ -122,7 +122,7 @@ export default function HomePage() {
           <p className="text-sm text-muted-foreground mb-4">
             Connect your wallet to share the philosophy behind your username
           </p>
-          <WalletConnect className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
+          <div className="inline-flex"><WalletConnect /></div>
         </div>
       )}
 
@@ -166,7 +166,7 @@ export default function HomePage() {
               Write Your Story
             </button>
           ) : (
-            <WalletConnect className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90" />
+            <div className="inline-flex"><WalletConnect /></div>
           )}
         </div>
       ) : (

@@ -14,19 +14,21 @@ export function FarcasterLogin() {
       ethereum: viemConnector(),
     })
     
-    const { channelToken, url } = await appClient.createChannel({
+    const channel = await appClient.createChannel({
       siweUri: 'https://names-app.vercel.app',
       domain: 'names-app.vercel.app',
     })
+
+    const { channelToken, url } = channel as any
     
     // Open Farcaster app for authentication
     window.open(url, '_blank')
     
     // Poll for authentication result
-    const result = await appClient.watchStatus({
+    const result = (await appClient.watchStatus({
       channelToken,
       timeout: 60000,
-    })
+    })) as any
     
     if (result.state === 'completed') {
       setFid(result.fid.toString())

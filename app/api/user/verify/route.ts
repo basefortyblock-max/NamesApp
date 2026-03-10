@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   try {
-    const { address, platform, username, verified, platformData } = await request.json()
+    const { address, platform, username, verified } = await request.json()
     
     if (!address || !platform || !username) {
       return NextResponse.json(
@@ -30,15 +30,13 @@ export async function POST(request: NextRequest) {
       update: {
         username,
         verified,
-        platformData,
       },
       create: {
         userId: address,
         platform,
-        platformId: username, // Use username as ID for Base ecosystem
+        platformId: username,
         username,
         verified,
-        platformData,
       },
     })
     

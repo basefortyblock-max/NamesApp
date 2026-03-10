@@ -1,21 +1,19 @@
-// app/api/analytics/farcaster/route.ts
+import { NextRequest, NextResponse } from 'next/server'
+
+// Analytics stub — event tracking placeholder (no DB model yet)
 export async function POST(request: NextRequest) {
-  const { event, fid, storyId } = await request.json()
-  
-  // Track events:
-  // - frame_viewed
-  // - button_clicked
-  // - shared_to_fc
-  // - value_sent
-  
-  await prisma.analyticsEvent.create({
-    data: {
-      event,
-      fid: fid?.toString(),
-      storyId,
-      platform: 'farcaster',
-    },
-  })
-  
-  return NextResponse.json({ success: true })
+  try {
+    const { event, fid, storyId } = await request.json()
+
+    if (!event) {
+      return NextResponse.json({ error: 'Missing event' }, { status: 400 })
+    }
+
+    // TODO: persist to DB when analyticsEvent model is added to schema
+    console.log('[analytics/farcaster]', { event, fid, storyId })
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to track event' }, { status: 500 })
+  }
 }

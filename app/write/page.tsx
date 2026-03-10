@@ -46,7 +46,7 @@ export default function WritePage() {
           You need to connect your wallet to share your name philosophy.
         </p>
         <div className="mt-5">
-          <WalletConnect className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90" />
+          <WalletConnect />
         </div>
       </div>
     )

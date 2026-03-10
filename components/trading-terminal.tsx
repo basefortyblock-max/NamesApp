@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useAccount } from "wagmi"
 import { TrendingUp, TrendingDown, Activity, DollarSign, BarChart3, X } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { ethers } from "ethers"
+import { BrowserProvider, Contract, parseUnits } from "ethers"
 
 // Import smart contract config
 const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_USERNAME_NFT_CONTRACT!
@@ -102,15 +102,15 @@ export function TradingTerminal({
 
     try {
       // Get provider and signer
-      const provider = new ethers.providers.Web3Provider(window.ethereum)
-      const signer = provider.getSigner()
+      const provider = new BrowserProvider(window.ethereum as any)
+      const signer = await provider.getSigner()
 
       // Convert price to USDC wei (6 decimals)
-      const priceInWei = ethers.utils.parseUnits(tradePrice.toString(), 6)
+      const priceInWei = parseUnits(tradePrice.toString(), 6)
 
       // 1. Approve USDC spending
       setTxStatus('Approving USDC...')
-      const usdcContract = new ethers.Contract(USDC_ADDRESS, USDC_ABI, signer)
+      const usdcContract = new Contract(USDC_ADDRESS, USDC_ABI, signer)
       
       // Check current allowance
       const allowance = await usdcContract.allowance(address, CONTRACT_ADDRESS)
@@ -123,7 +123,7 @@ export function TradingTerminal({
 
       // 2. Buy the username
       setTxStatus('Buying username...')
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer)
+      const contract = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer)
       const buyTx = await contract.buyPairedUsername(tokenId)
       
       setTxStatus('Waiting for transaction confirmation...')
@@ -180,14 +180,14 @@ export function TradingTerminal({
     setTxStatus('Preparing listing...')
 
     try {
-      const provider = new ethers.providers.Web3Provider(window.ethereum)
-      const signer = provider.getSigner()
+      const provider = new BrowserProvider(window.ethereum as any)
+      const signer = await provider.getSigner()
 
       // Convert price to wei (6 decimals for USDC)
-      const priceInWei = ethers.utils.parseUnits(tradePrice.toString(), 6)
+      const priceInWei = parseUnits(tradePrice.toString(), 6)
 
       // List for sale
-      const contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer)
+      const contract = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer)
       const listTx = await contract.listForSale(tokenId, priceInWei)
       
       setTxStatus('Waiting for confirmation...')
