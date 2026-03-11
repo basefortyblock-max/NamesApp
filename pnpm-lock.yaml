@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@types/pg': 8.11.11
+
 importers:
 
   .:
@@ -17,9 +20,6 @@ importers:
       '@hookform/resolvers':
         specifier: ^3.10.0
         version: 3.10.0(react-hook-form@7.71.2(react@19.2.0))
-      '@next/swc-win32-x64-msvc':
-        specifier: ^16.1.6
-        version: 16.1.6
       '@prisma/adapter-pg':
         specifier: ^7.4.2
         version: 7.5.0
@@ -192,6 +192,9 @@ importers:
       '@types/node':
         specifier: ^25.3.3
         version: 25.4.0
+      '@types/pg':
+        specifier: 8.11.11
+        version: 8.11.11
       '@types/react':
         specifier: ^19.2.14
         version: 19.2.14
@@ -5367,7 +5370,8 @@ snapshots:
   '@next/swc-win32-arm64-msvc@16.1.6':
     optional: true
 
-  '@next/swc-win32-x64-msvc@16.1.6': {}
+  '@next/swc-win32-x64-msvc@16.1.6':
+    optional: true
 
   '@noble/ciphers@1.2.1': {}
 
