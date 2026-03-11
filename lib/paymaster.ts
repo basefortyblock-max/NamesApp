@@ -79,7 +79,7 @@ export async function sponsorTransaction(params: {
  * Build USDC transfer data
  * USDC on Base: 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
  */
-const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Address
+export const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913' as Address
 
 export function buildUSDCTransferData(to: Address, amount: bigint): `0x${string}` {
   // ERC20 transfer function signature: transfer(address,uint256)

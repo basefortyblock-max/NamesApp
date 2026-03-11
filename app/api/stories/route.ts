@@ -62,10 +62,29 @@ export async function GET(request: NextRequest) {
   try {
     console.log('📚 Fetching all stories...')
     
-    const stories = await prisma.story.findMany({
+    const storiesRaw = await prisma.story.findMany({
       orderBy: { createdAt: 'desc' },
       take: 50,
+      include: {
+        user: {
+          select: { address: true },
+        },
+      },
     })
+
+    const stories = storiesRaw.map((story) => ({
+      id: story.id,
+      userId: story.userId,
+      username: story.username,
+      platform: story.platform,
+      story: story.story,
+      price: story.price,
+      likes: story.likes,
+      shares: story.shares,
+      verified: story.verified,
+      createdAt: story.createdAt,
+      creatorAddress: story.user?.address ?? null,
+    }))
 
     console.log(`✅ Found ${stories.length} stories`)
     

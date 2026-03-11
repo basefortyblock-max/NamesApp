@@ -12,10 +12,10 @@ export async function POST(
     const { id } = await params
     const { from, amount, to, txHash } = await request.json()
     
-    // Validation
-    if (!from || amount === undefined || !to) {
+    // Basic validation
+    if (!from || amount === undefined) {
       return NextResponse.json(
-        { error: 'Missing required fields: from, amount, to' },
+        { error: 'Missing required fields: from, amount' },
         { status: 400 }
       )
     }
@@ -40,21 +40,8 @@ export async function POST(
       )
     }
 
-    // Verify the 'to' address matches the story creator
-    const storyOwner = await prisma.user.findUnique({
-      where: { id: story.userId },
-      select: { address: true },
-    })
-
-    if (!storyOwner || storyOwner.address.toLowerCase() !== to.toLowerCase()) {
-      return NextResponse.json(
-        { error: 'Recipient address mismatch' },
-        { status: 400 }
-      )
-    }
-
     // Create value record
-    // txHash will be provided after the transaction completes on frontend
+    // txHash can be provided after the onchain transaction completes on frontend
     const value = await prisma.storyValue.create({
       data: {
         storyId: id,
