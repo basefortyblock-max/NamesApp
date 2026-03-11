@@ -15,7 +15,11 @@
     "webhookUrl": "https://names-app-seven.vercel.app/api/farcaster/webhook",
     "subtitle": "Story Username",
     "description": "The Charismatic Philosophy Behind Your Username",
-    "screenshotUrls": [],
+    "screenshotUrls": [
+      "https://names-app-seven.vercel.app/s1.png",
+      "https://names-app-seven.vercel.app/s2.png",
+      "https://names-app-seven.vercel.app/s3.png"
+],
     "primaryCategory": "social",
     "tags": ["earn","farcaster","baseapp"],
     "tagline": "Joy Username",
