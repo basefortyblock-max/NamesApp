@@ -1,5 +1,5 @@
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
 }
 
 generator client {
@@ -7,39 +7,40 @@ generator client {
 }
 
 model User {
-  id                String               @id @default(cuid())
-  address           String               @unique
-  basename          String?
-  balance           Float                @default(0)
-  openForPairing    Boolean              @default(false)
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
-  
-  stories           Story[]
-  transactions      Transaction[]
-  verifications     SocialVerification[]
+  id             String               @id @default(cuid())
+  address        String               @unique
+  basename       String?
+  balance        Float                @default(0)
+  openForPairing Boolean              @default(false)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  stories        Story[]
+  transactions   Transaction[]
+  verifications  SocialVerification[]
 }
 
 model Story {
   id           String   @id @default(cuid())
   userId       String
   user         User     @relation(fields: [userId], references: [id])
-  
+
   username     String
   platform     String
   story        String   @db.Text
+  address      String   @default("")  // ✅ wallet address pemilik, untuk penerima USDC
   price        Float    @default(0.7)
   likes        Int      @default(0)
   shares       Int      @default(0)
   verified     Boolean  @default(false)
   platformLogo String?
-  
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  
+
   comments     Comment[]
   values       StoryValue[]
-  
+
   @@unique([username, platform])
   @@index([userId])
   @@index([platform])
@@ -49,13 +50,13 @@ model Comment {
   id        String   @id @default(cuid())
   storyId   String
   story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  
+
   author    String
   address   String
   text      String   @db.Text
-  
+
   createdAt DateTime @default(now())
-  
+
   @@index([storyId])
 }
 
@@ -63,13 +64,13 @@ model StoryValue {
   id        String   @id @default(cuid())
   storyId   String
   story     Story    @relation(fields: [storyId], references: [id], onDelete: Cascade)
-  
+
   from      String
   amount    Float
-  txHash    String?
-  
+  txHash    String   @unique  // ✅ wajib ada & unik — hanya disimpan setelah confirmed onchain
+
   createdAt DateTime @default(now())
-  
+
   @@index([storyId])
   @@index([from])
 }
@@ -78,17 +79,17 @@ model SocialVerification {
   id           String    @id @default(cuid())
   userId       String
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   platform     String
   platformId   String
   username     String
   verified     Boolean   @default(true)
   accessToken  String?   @db.Text
   refreshToken String?   @db.Text
-  
+
   createdAt    DateTime  @default(now())
   expiresAt    DateTime?
-  
+
   @@unique([userId, platform])
   @@index([userId])
 }
@@ -101,19 +102,19 @@ model PairedUsername {
   platform2    String
   pairedName   String   @unique
   creator      String
-  
+
   currentPrice Float    @default(0.7)
   highPrice    Float?
   lowPrice     Float?
   totalVolume  Float    @default(0)
   forSale      Boolean  @default(false)
   lastTradeAt  DateTime?
-  
+
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  
+
   trades       Trade[]
-  
+
   @@index([creator])
 }
 
@@ -121,15 +122,15 @@ model Trade {
   id               String         @id @default(cuid())
   pairedUsernameId String
   pairedUsername   PairedUsername @relation(fields: [pairedUsernameId], references: [id], onDelete: Cascade)
-  
+
   from             String
   type             String
   price            Float
-  txHash           String         @unique
-  status           String         @default("pending")
-  
-  createdAt        DateTime       @default(now())
-  
+  txHash           String   @unique
+  status           String   @default("pending")
+
+  createdAt        DateTime @default(now())
+
   @@index([pairedUsernameId])
   @@index([from])
 }
@@ -138,14 +139,14 @@ model Transaction {
   id        String   @id @default(cuid())
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   type      String
   amount    Float
   txHash    String?
   status    String
-  
+
   createdAt DateTime @default(now())
-  
+
   @@index([userId])
   @@index([type])
 }

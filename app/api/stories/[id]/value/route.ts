@@ -1,7 +1,7 @@
+// app/api/stories/[id]/value/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-const USDC_DECIMALS = 6
 const MIN_AMOUNT = 0.7
 
 export async function POST(
@@ -11,8 +11,7 @@ export async function POST(
   try {
     const { id } = await params
     const { from, amount, to, txHash } = await request.json()
-    
-    // Basic validation
+
     if (!from || amount === undefined) {
       return NextResponse.json(
         { error: 'Missing required fields: from, amount' },
@@ -27,47 +26,51 @@ export async function POST(
       )
     }
 
-    // Verify story exists
+    // ✅ txHash is now required — this route is only called after onchain confirmation
+    if (!txHash) {
+      return NextResponse.json(
+        { error: 'txHash is required — must be called after onchain confirmation' },
+        { status: 400 }
+      )
+    }
+
     const story = await prisma.story.findUnique({
       where: { id },
       select: { id: true, price: true, userId: true, username: true },
     })
 
     if (!story) {
-      return NextResponse.json(
-        { error: 'Story not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Story not found' }, { status: 404 })
     }
 
-    // Create value record
-    // txHash can be provided after the onchain transaction completes on frontend
+    // ✅ Save real txHash from onchain — no more pending placeholder
     const value = await prisma.storyValue.create({
       data: {
         storyId: id,
         from,
         amount,
-        txHash: txHash || `pending-${Date.now()}`, // Temporary placeholder
+        txHash,
       },
     })
 
-    // Increase story price based on value received
-    const priceIncrease = amount * 0.05 // 5% of the appreciation increases story value
+    const priceIncrease = amount * 0.05
     await prisma.story.update({
       where: { id },
       data: { price: { increment: priceIncrease } },
     })
 
-    return NextResponse.json({ 
-      success: true, 
-      value,
-      message: `Sent ${amount} USDC to @${story.username}`,
-      newPrice: story.price + priceIncrease,
-    }, { status: 201 })
+    return NextResponse.json(
+      {
+        success: true,
+        value,
+        message: `Sent ${amount} USDC to @${story.username}`,
+        newPrice: story.price + priceIncrease,
+      },
+      { status: 201 }
+    )
   } catch (error: any) {
     console.error('Send value error:', error)
-    
-    // Handle specific errors
+
     if (error.code === 'P2002') {
       return NextResponse.json(
         { error: 'Transaction already recorded' },
@@ -76,16 +79,15 @@ export async function POST(
     }
 
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to process appreciation',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
       },
       { status: 500 }
     )
   }
 }
 
-// GET - Get value transfers for a story
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -96,17 +98,13 @@ export async function GET(
     const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 10
     const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : 0
 
-    // Verify story exists
     const story = await prisma.story.findUnique({
       where: { id },
       select: { id: true, price: true },
     })
 
     if (!story) {
-      return NextResponse.json(
-        { error: 'Story not found' },
-        { status: 404 }
-      )
+      return NextResponse.json({ error: 'Story not found' }, { status: 404 })
     }
 
     const values = await prisma.storyValue.findMany({

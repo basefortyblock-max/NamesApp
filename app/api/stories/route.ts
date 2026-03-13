@@ -1,12 +1,14 @@
+// app/api/stories/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId, username, platform, story, verified } = await request.json()
-    
+    // ✅ Added `address` to destructuring — wallet address of story creator
+    const { userId, username, platform, story, verified, address } = await request.json()
+
     console.log('📝 Creating story:', { userId, username, platform, storyLength: story?.length })
-    
+
     if (!userId || !username || !platform || !story) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
@@ -22,17 +24,18 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `Too long: ${wordCount}/490 words` }, { status: 400 })
     }
 
-    // Check if THIS user already published THIS username
-    // Other users CAN publish the same username
     const existingStory = await prisma.story.findFirst({
-      where: { 
+      where: {
         userId: user.id,
         username,
-      }
+      },
     })
 
     if (existingStory) {
-      return NextResponse.json({ error: 'You already published a story for this username' }, { status: 400 })
+      return NextResponse.json(
+        { error: 'You already published a story for this username' },
+        { status: 400 }
+      )
     }
 
     const newStory = await prisma.story.create({
@@ -43,25 +46,29 @@ export async function POST(request: NextRequest) {
         story,
         verified: verified || false,
         price: 0.7,
+        // ✅ Save wallet address so USDC transfer knows the recipient
+        address: address || userId,
       },
     })
 
     console.log('✅ Story created:', newStory.id)
     return NextResponse.json({ success: true, story: newStory }, { status: 201 })
-
   } catch (error: any) {
     console.error('❌ Story error:', error)
-    return NextResponse.json({ 
-      error: 'Failed to publish', 
-      details: error.message 
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: 'Failed to publish',
+        details: error.message,
+      },
+      { status: 500 }
+    )
   }
 }
 
 export async function GET(request: NextRequest) {
   try {
     console.log('📚 Fetching all stories...')
-    
+
     const storiesRaw = await prisma.story.findMany({
       orderBy: { createdAt: 'desc' },
       take: 50,
@@ -72,33 +79,37 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const stories = storiesRaw.map((story) => ({
-      id: story.id,
-      userId: story.userId,
-      username: story.username,
-      platform: story.platform,
-      story: story.story,
-      price: story.price,
-      likes: story.likes,
-      shares: story.shares,
-      verified: story.verified,
-      createdAt: story.createdAt,
-      creatorAddress: story.user?.address ?? null,
+    const stories = storiesRaw.map((s) => ({
+      id: s.id,
+      userId: s.userId,
+      username: s.username,
+      platform: s.platform,
+      story: s.story,
+      price: s.price,
+      likes: s.likes,
+      shares: s.shares,
+      verified: s.verified,
+      createdAt: s.createdAt,
+      // ✅ Renamed from creatorAddress → address to match story-card.tsx expectation
+      // Falls back to user.address if Story.address is empty (data lama)
+      address: s.address || s.user?.address || '',
     }))
 
     console.log(`✅ Found ${stories.length} stories`)
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       success: true,
       count: stories.length,
-      stories 
+      stories,
     })
-    
   } catch (error: any) {
     console.error('❌ Get stories error:', error)
-    return NextResponse.json({ 
-      error: 'Failed to fetch stories',
-      details: error.message 
-    }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: 'Failed to fetch stories',
+        details: error.message,
+      },
+      { status: 500 }
+    )
   }
 }
