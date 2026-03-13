@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const paymasterUrl = process.env.NEXT_PUBLIC_PAYMASTER_URL
+    const paymasterUrl = process.env.PAYMASTER_URL
     
     return NextResponse.json({
       configured: !!paymasterUrl,
