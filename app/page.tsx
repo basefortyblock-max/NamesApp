@@ -322,9 +322,12 @@ export default function HomePage() {
             </div>
 
             <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-3 mb-4">
-              <p className="text-xs text-green-700 dark:text-green-300 font-medium">
-                ⚡ No gas fees — transaction sponsored by Paymaster
-              </p>
+               <p className="text-xs text-green-700 dark:text-green-300 font-medium">
+               ⚡ No gas fees — transaction sponsored by Paymaster
+               </p>
+               <p className="text-xs text-green-600/70 dark:text-green-400/60 mt-1">
+               💡 Use Coinbase Wallet for true gasless
+               </p>
             </div>
 
             {/* ✅ OnchainKit Transaction — real gasless USDC transfer */}
