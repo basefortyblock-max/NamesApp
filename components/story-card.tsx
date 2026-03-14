@@ -3,14 +3,13 @@
 /**
  * story-card.tsx
  *
- * CHANGES:
- * - Replaced handleValue() + valueStory() local-state-only call with
- *   OnchainKit <Transaction> component for real onchain USDC transfer
- * - Added paymasterService proxy so CDP API key stays server-side only
- * - handleTransactionSuccess() now POSTs real txHash to /api/stories/[id]/value
- *   after onchain confirmation, replacing the previous "pending-{Date.now()}" placeholder
- * - calls[] built from story.address (recipient) + buildUSDCTransferData from lib/paymaster
- * - valueStory() in context still called after success to sync local UI state
+ * FIXES:
+ * - handleTransactionSuccess: robust txHash extraction from OnchainKit
+ *   LifecycleStatus — checks multiple possible paths in statusData
+ * - DB save is now non-blocking: error saving to DB no longer shows
+ *   error popup to user — onchain tx already succeeded at that point
+ * - valueStory() and UI reset happen immediately on success, before DB save
+ * - Added Coinbase Wallet gasless hint in transaction area
  */
 
 import { useState } from "react"
@@ -51,7 +50,6 @@ export function StoryCard({ story }: { story: Story }) {
     ? `${address.slice(0, 6)}...${address.slice(-4)}`
     : "Anonymous"
 
-  // Build OnchainKit calls — recipient from story.address
   const amount = parseFloat(valueAmount)
   const isValidAmount = !isNaN(amount) && amount >= 0.7
   const recipientAddress = story.address as `0x${string}`
@@ -69,15 +67,22 @@ export function StoryCard({ story }: { story: Story }) {
         ]
       : []
 
-  // Called by OnchainKit after tx is confirmed onchain
   const handleTransactionSuccess = async (status: LifecycleStatus) => {
     if (status.statusName !== "success") return
 
-    const txHash =
-      status.statusData.transactionReceipts?.[0]?.transactionHash ?? null
+    const data = status.statusData as any
+    const txHash: string | null =
+      data?.transactionReceipts?.[0]?.transactionHash ??
+      data?.receipts?.[0]?.transactionHash ??
+      data?.receipt?.transactionHash ??
+      data?.transactionHash ??
+      null
 
-    // Persist real txHash to DB and update story price
-    await fetch(`/api/stories/${story.id}/value`, {
+    valueStory(story.id, amount, txHash ?? undefined)
+    setShowValueInput(false)
+    setValueAmount("0.7")
+
+    fetch(`/api/stories/${story.id}/value`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -87,11 +92,15 @@ export function StoryCard({ story }: { story: Story }) {
         txHash,
       }),
     })
-
-    // Sync local UI state
-    valueStory(story.id, amount, txHash ?? undefined)
-    setShowValueInput(false)
-    setValueAmount("0.7")
+      .then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          console.error("DB save failed (tx already confirmed onchain):", err)
+        }
+      })
+      .catch((err) =>
+        console.error("DB save network error (tx already confirmed):", err)
+      )
   }
 
   const handleComment = () => {
@@ -199,12 +208,20 @@ export function StoryCard({ story }: { story: Story }) {
                 calls={calls}
                 capabilities={{
                   paymasterService: {
-                    // Proxy route keeps PAYMASTER_URL server-side only
                     url: "/api/paymaster/proxy",
                   },
                 }}
                 onStatus={handleTransactionSuccess}
               >
+                {/* ✅ Gasless hint */}
+                <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-2 mb-2">
+                  <p className="text-xs text-green-700 dark:text-green-300 font-medium">
+                    ⚡ No gas fees — transaction sponsored by Paymaster
+                  </p>
+                  <p className="text-xs text-green-600/70 dark:text-green-400/60 mt-0.5">
+                    💡 Use Coinbase Wallet for true gasless
+                  </p>
+                </div>
                 <TransactionButton
                   text={`Send ${amount} USDC`}
                   className="w-full rounded-full bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90"
