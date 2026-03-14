@@ -1,10 +1,32 @@
 "use client"
 
+/**
+ * app/page.tsx
+ *
+ * FIXES:
+ * - Story interface: added `address` field for USDC recipient
+ * - handleSendValue() removed — replaced with OnchainKit <Transaction>
+ *   so real onchain USDC transfer happens with gasless sponsorship
+ * - handleTransactionSuccess() saves real txHash to DB after onchain confirmation
+ * - DB save is non-blocking — error never shows alert popup to user
+ * - Removed sendingValue state — OnchainKit manages loading state internally
+ */
+
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAccount } from "wagmi"
 import { WalletConnect } from "@/components/connect-wallet-button"
 import { Sparkles, DollarSign, X } from "lucide-react"
+import {
+  Transaction,
+  TransactionButton,
+  TransactionStatus,
+  TransactionStatusLabel,
+  TransactionStatusAction,
+} from "@coinbase/onchainkit/transaction"
+import type { LifecycleStatus } from "@coinbase/onchainkit/transaction"
+import { base } from "viem/chains"
+import { buildUSDCTransferData, USDC_ADDRESS } from "@/lib/paymaster"
 
 interface Story {
   id: string
@@ -15,6 +37,7 @@ interface Story {
   verified: boolean
   createdAt: string
   userId: string
+  address: string // ✅ wallet address penerima USDC
 }
 
 export default function HomePage() {
@@ -22,12 +45,11 @@ export default function HomePage() {
   const router = useRouter()
   const [stories, setStories] = useState<Story[]>([])
   const [loading, setLoading] = useState(true)
-  
+
   // Send Value Modal
   const [showValueModal, setShowValueModal] = useState(false)
   const [selectedStory, setSelectedStory] = useState<Story | null>(null)
   const [valueAmount, setValueAmount] = useState("0.7")
-  const [sendingValue, setSendingValue] = useState(false)
 
   useEffect(() => {
     fetchStories()
@@ -51,44 +73,75 @@ export default function HomePage() {
       return
     }
     setSelectedStory(story)
+    setValueAmount("0.7")
     setShowValueModal(true)
   }
 
-  async function handleSendValue() {
-    if (!selectedStory || !address) return
-    
+  // ✅ Called by OnchainKit after tx confirmed onchain — save to DB non-blocking
+  const handleTransactionSuccess = async (status: LifecycleStatus) => {
+    if (status.statusName !== "success" || !selectedStory) return
+
+    const data = status.statusData as any
+    const txHash: string | null =
+      data?.transactionReceipts?.[0]?.transactionHash ??
+      data?.receipts?.[0]?.transactionHash ??
+      data?.receipt?.transactionHash ??
+      data?.transactionHash ??
+      null
+
     const amount = parseFloat(valueAmount)
-    if (isNaN(amount) || amount < 0.7) {
-      alert('Minimum 0.7 USDC')
-      return
-    }
 
-    setSendingValue(true)
-    
-    try {
-      const response = await fetch(`/api/stories/${selectedStory.id}/value`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: address,
-          amount,
-        }),
+    // Update local price immediately
+    setStories((prev) =>
+      prev.map((s) =>
+        s.id === selectedStory.id
+          ? { ...s, price: s.price + amount * 0.05 }
+          : s
+      )
+    )
+
+    setShowValueModal(false)
+    setValueAmount("0.7")
+
+    // Save to DB in background — non-blocking, no alert on failure
+    fetch(`/api/stories/${selectedStory.id}/value`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from: address,
+        to: selectedStory.address,
+        amount,
+        txHash,
+      }),
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}))
+          console.error('DB save failed (tx already confirmed onchain):', err)
+        }
       })
-
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to send value')
-      }
-
-      alert(`✅ Sent ${amount} USDC to @${selectedStory.username}!`)
-      setShowValueModal(false)
-      setValueAmount("0.7")
-    } catch (error: any) {
-      alert(`❌ ${error.message}`)
-    } finally {
-      setSendingValue(false)
-    }
+      .catch((err) =>
+        console.error('DB save network error (tx already confirmed):', err)
+      )
   }
+
+  // Build OnchainKit calls for selected story
+  const amount = parseFloat(valueAmount)
+  const isValidAmount = !isNaN(amount) && amount >= 0.7
+  const recipientAddress = selectedStory?.address as `0x${string}` | undefined
+
+  const calls =
+    isValidAmount && recipientAddress
+      ? [
+          {
+            to: USDC_ADDRESS,
+            data: buildUSDCTransferData(
+              recipientAddress,
+              BigInt(Math.floor(amount * 1e6))
+            ),
+          },
+        ]
+      : []
 
   if (loading) {
     return (
@@ -134,7 +187,6 @@ export default function HomePage() {
             ({stories.length})
           </span>
         </h2>
-        
         {address && (
           <button
             onClick={() => router.push('/write')}
@@ -151,9 +203,7 @@ export default function HomePage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
             <Sparkles className="h-8 w-8 text-muted-foreground" />
           </div>
-          <h3 className="text-lg font-bold text-foreground mb-2">
-            No Stories Yet
-          </h3>
+          <h3 className="text-lg font-bold text-foreground mb-2">No Stories Yet</h3>
           <p className="text-sm text-muted-foreground mb-6">
             Be the first to share your username philosophy!
           </p>
@@ -204,9 +254,7 @@ export default function HomePage() {
                   <p className="text-sm font-semibold text-primary">
                     {story.price.toFixed(2)} USDC
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Base price
-                  </p>
+                  <p className="text-xs text-muted-foreground">Base price</p>
                 </div>
               </div>
 
@@ -215,10 +263,10 @@ export default function HomePage() {
                 {story.story}
               </p>
 
-              {/* Send Value Action */}
+              {/* Send Appreciation Button */}
               {address && (
                 <div className="pt-4 border-t border-border">
-                  <button 
+                  <button
                     onClick={() => openValueModal(story)}
                     className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
                   >
@@ -240,7 +288,7 @@ export default function HomePage() {
               <h3 className="text-lg font-bold text-foreground">
                 Send Appreciation
               </h3>
-              <button 
+              <button
                 onClick={() => setShowValueModal(false)}
                 className="text-muted-foreground hover:text-foreground"
               >
@@ -250,7 +298,9 @@ export default function HomePage() {
 
             <div className="mb-4 p-4 rounded-lg bg-secondary/50">
               <p className="text-sm text-muted-foreground mb-1">To</p>
-              <p className="text-base font-semibold text-foreground">@{selectedStory.username}</p>
+              <p className="text-base font-semibold text-foreground">
+                @{selectedStory.username}
+              </p>
             </div>
 
             <div className="mb-4">
@@ -277,13 +327,35 @@ export default function HomePage() {
               </p>
             </div>
 
-            <button
-              onClick={handleSendValue}
-              disabled={sendingValue || parseFloat(valueAmount) < 0.7}
-              className="w-full rounded-lg bg-primary py-3 text-base font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {sendingValue ? 'Sending...' : `Send ${valueAmount} USDC`}
-            </button>
+            {/* ✅ OnchainKit Transaction — real gasless USDC transfer */}
+            {isValidAmount && calls.length > 0 ? (
+              <Transaction
+                chainId={base.id}
+                calls={calls}
+                capabilities={{
+                  paymasterService: {
+                    url: "/api/paymaster/proxy",
+                  },
+                }}
+                onStatus={handleTransactionSuccess}
+              >
+                <TransactionButton
+                  text={`Send ${valueAmount} USDC`}
+                  className="w-full rounded-lg bg-primary py-3 text-base font-semibold text-primary-foreground hover:bg-primary/90"
+                />
+                <TransactionStatus>
+                  <TransactionStatusLabel />
+                  <TransactionStatusAction />
+                </TransactionStatus>
+              </Transaction>
+            ) : (
+              <button
+                disabled
+                className="w-full rounded-lg bg-primary/50 py-3 text-base font-semibold text-primary-foreground cursor-not-allowed"
+              >
+                Minimum 0.7 USDC
+              </button>
+            )}
           </div>
         </div>
       )}
