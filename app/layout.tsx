@@ -53,11 +53,21 @@ export const metadata: Metadata = {
 
   other: {
     "base:builder-code": "bc_rapdmhv2",
-    "fc:frame": "vNext",
-    "fc:frame:image": "https://names-app-seven.vercel.app/og-image.png",
-    "fc:frame:button:1": "Open Names",
-    "fc:frame:button:1:action": "link",
-    "fc:frame:button:1:target": "https://names-app-seven.vercel.app",
+    // ✅ Format Mini App embed baru — dikenali oleh Farcaster Embed Tool
+    "fc:frame": JSON.stringify({
+      version: "next",
+      imageUrl: "https://names-app-seven.vercel.app/og-image.png",
+      button: {
+        title: "Open Names",
+        action: {
+          type: "launch_frame",
+          name: "Names",
+          url: "https://names-app-seven.vercel.app",
+          splashImageUrl: "https://names-app-seven.vercel.app/og-image.png",
+          splashBackgroundColor: "#1a6b3c",
+        },
+      },
+    }),
   },
 }
 
