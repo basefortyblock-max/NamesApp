@@ -8,6 +8,8 @@
     "version": "1",
     "name": "Names",
     "iconUrl": "https://names-app-seven.vercel.app/icon.png",
+    "imageUrl": "https://names-app-seven.vercel.app/og-image.png",
+    "buttonTitle": "Open Names",
     "splashImageUrl": "https://names-app-seven.vercel.app/splash-image.png",
     "heroImageUrl": "https://names-app-seven.vercel.app/hero-image.png",
     "splashBackgroundColor": "#1a6b3c",
@@ -19,14 +21,13 @@
       "https://names-app-seven.vercel.app/s1.png",
       "https://names-app-seven.vercel.app/s2.png",
       "https://names-app-seven.vercel.app/s3.png"
-],
+    ],
     "primaryCategory": "social",
-    "tags": ["earn","farcaster","baseapp"],
+    "tags": ["earn", "farcaster", "baseapp"],
     "tagline": "Joy Username",
     "ogTitle": "Publish Simple",
     "ogDescription": "Publish philosophy about why you loves your username.",
     "ogImageUrl": "https://names-app-seven.vercel.app/og-image.png",
     "noindex": false
-
   }
 }
