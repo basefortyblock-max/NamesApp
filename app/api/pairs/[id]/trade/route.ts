@@ -122,7 +122,7 @@ export async function GET(
     const trades = await prisma.trade.findMany({
       where: {
         pairedUsernameId: id,
-        status: 'completed',
+        status: 'confirmed',
       },
       orderBy: {
         createdAt: 'desc',
