@@ -23,3 +23,29 @@ export async function GET(
     return NextResponse.json({ error: 'Failed to fetch pair' }, { status: 500 })
   }
 }
+
+// ✅ PATCH — update ownerAddress and forSale status after onchain buy
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params
+    const body = await request.json()
+
+    const updateData: any = {}
+    if (body.ownerAddress !== undefined) updateData.ownerAddress = body.ownerAddress
+    if (body.forSale !== undefined) updateData.forSale = body.forSale
+    if (body.currentPrice !== undefined) updateData.currentPrice = body.currentPrice
+
+    const pair = await prisma.pairedUsername.update({
+      where: { id },
+      data: updateData,
+    })
+
+    return NextResponse.json({ pair })
+  } catch (error: any) {
+    console.error('Patch pair error:', error)
+    return NextResponse.json({ error: 'Failed to update pair' }, { status: 500 })
+  }
+}

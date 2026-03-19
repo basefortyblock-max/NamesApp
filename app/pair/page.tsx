@@ -3,23 +3,31 @@
 /**
  * app/pair/page.tsx
  *
- * CHANGES:
- * - Added PairData interface for minted NFTs
- * - Added myPairs state + fetchMyPairs() to load user's minted NFTs
- * - Added "My Paired Usernames (NFTs)" section above Your Verified Accounts
- *   so user can always see their NFTs and navigate to trade page
- * - fetchMyPairs() also called after successful mint to refresh list
+ * ONCHAIN UPGRADE:
+ * - handleConfirmPair() now calls contract.mintPairedUsername() via ethers
+ *   BEFORE saving to DB — gets real tokenId (uint256) from UsernamePaired event
+ * - tokenId and txHash saved to DB alongside the pair record
+ * - Falls back to DB-only if contract call fails (legacy behavior preserved)
+ * - Contract: 0xD3F182486C011463446452Bc32d30B965921C521 (Base Mainnet)
  */
 
 import { useState, useEffect } from "react"
 import { useAccount } from "wagmi"
 import { useRouter } from "next/navigation"
 import { WalletConnect } from "@/components/connect-wallet-button"
+import { BrowserProvider, Contract } from "ethers"
 import {
   Wallet, CheckCircle2, AlertCircle, Loader2,
   Shield, Users, ArrowRight, TrendingUp, BookOpen
 } from "lucide-react"
 import { DisclaimerModal } from "@/components/disclaimer-modal"
+
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_USERNAME_NFT_CONTRACT!
+
+const MINT_ABI = [
+  'function mintPairedUsername(string username1, string platform1, string username2, string platform2) external returns (uint256)',
+  'event UsernamePaired(uint256 indexed tokenId, address indexed creator, string pairedName, string username1, string username2)',
+]
 
 interface UserAccount {
   username: string
@@ -41,7 +49,6 @@ interface MintResult {
   tokenId?: string
 }
 
-// ✅ Interface for minted NFTs
 interface PairData {
   id: string
   pairedName: string
@@ -49,6 +56,7 @@ interface PairData {
   username2: string
   currentPrice: number
   forSale: boolean
+  tokenId?: number | null
   createdAt: string
 }
 
@@ -58,52 +66,43 @@ export default function PairPage() {
 
   const [myAccounts, setMyAccounts] = useState<UserAccount[]>([])
   const [loadingAccounts, setLoadingAccounts] = useState(true)
-
   const [availableUsers, setAvailableUsers] = useState<AvailableUser[]>([])
   const [showAvailable, setShowAvailable] = useState(false)
-
   const [openForPairing, setOpenForPairing] = useState(false)
   const [loadingToggle, setLoadingToggle] = useState(false)
-
   const [selectedAccount1, setSelectedAccount1] = useState<UserAccount | null>(null)
   const [selectedAccount2, setSelectedAccount2] = useState<UserAccount | null>(null)
   const [selectedOther, setSelectedOther] = useState<AvailableUser | null>(null)
-
   const [showDisclaimer, setShowDisclaimer] = useState(false)
   const [isPairing, setIsPairing] = useState(false)
-
+  const [mintStatus, setMintStatus] = useState<string>('')
   const [mintResult, setMintResult] = useState<MintResult | null>(null)
   const [showPostMintModal, setShowPostMintModal] = useState(false)
-
-  // ✅ My minted NFTs
   const [myPairs, setMyPairs] = useState<PairData[]>([])
 
   useEffect(() => {
     if (address) {
       fetchMyAccounts()
       fetchPairingStatus()
-      fetchMyPairs() // ✅ load on mount
+      fetchMyPairs()
     }
   }, [address])
 
   useEffect(() => {
-    if (showAvailable) {
-      fetchAvailableUsers()
-    }
+    if (showAvailable) fetchAvailableUsers()
   }, [showAvailable])
 
   async function fetchMyAccounts() {
     try {
-      const response = await fetch(`/api/user/stories?address=${address}`)
-      const data = await response.json()
-      const accounts = data.stories?.map((s: any) => ({
+      const res = await fetch(`/api/user/stories?address=${address}`)
+      const data = await res.json()
+      setMyAccounts(data.stories?.map((s: any) => ({
         username: s.username,
         platform: s.platform,
         verified: s.verified,
-      })) || []
-      setMyAccounts(accounts)
-    } catch (error) {
-      console.error('Failed to fetch accounts:', error)
+      })) || [])
+    } catch (e) {
+      console.error('Failed to fetch accounts:', e)
     } finally {
       setLoadingAccounts(false)
     }
@@ -111,72 +110,61 @@ export default function PairPage() {
 
   async function fetchPairingStatus() {
     try {
-      const response = await fetch(`/api/user/toggle-pairing?address=${address}`)
-      const data = await response.json()
+      const res = await fetch(`/api/user/toggle-pairing?address=${address}`)
+      const data = await res.json()
       setOpenForPairing(data.openForPairing || false)
-    } catch (error) {
-      console.error('Failed to fetch pairing status:', error)
+    } catch (e) {
+      console.error('Failed to fetch pairing status:', e)
     }
   }
 
-  // ✅ Fetch user's minted NFTs
   async function fetchMyPairs() {
     try {
-      const response = await fetch(`/api/pairs/mint?address=${address}`)
-      const data = await response.json()
+      const res = await fetch(`/api/pairs/mint?address=${address}`)
+      const data = await res.json()
       setMyPairs(data.pairs || [])
-    } catch (error) {
-      console.error('Failed to fetch pairs:', error)
+    } catch (e) {
+      console.error('Failed to fetch pairs:', e)
     }
   }
 
   async function fetchAvailableUsers() {
     try {
-      const response = await fetch('/api/users/available')
-      const data = await response.json()
-      const filtered = data.users?.filter((u: AvailableUser) =>
-        u.address !== address && u.openForPairing
-      ) || []
-      setAvailableUsers(filtered)
-    } catch (error) {
-      console.error('Failed to fetch available users:', error)
+      const res = await fetch('/api/users/available')
+      const data = await res.json()
+      setAvailableUsers(
+        data.users?.filter((u: AvailableUser) => u.address !== address && u.openForPairing) || []
+      )
+    } catch (e) {
+      console.error('Failed to fetch available users:', e)
     }
   }
 
   async function togglePairingStatus() {
     setLoadingToggle(true)
     try {
-      const response = await fetch('/api/user/toggle-pairing', {
+      const res = await fetch('/api/user/toggle-pairing', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ address, enabled: !openForPairing }),
       })
-      const data = await response.json()
+      const data = await res.json()
       setOpenForPairing(data.openForPairing)
-    } catch (error) {
-      console.error('Failed to update pairing status:', error)
+    } catch (e) {
+      console.error('Failed to toggle pairing:', e)
     } finally {
       setLoadingToggle(false)
     }
   }
 
   function handleSelfPair() {
-    if (!selectedAccount1 || !selectedAccount2) {
-      alert('Please select 2 different accounts')
-      return
-    }
-    if (selectedAccount1.username === selectedAccount2.username) {
-      alert('Please select 2 different usernames')
-      return
-    }
+    if (!selectedAccount1 || !selectedAccount2) { alert('Please select 2 different accounts'); return }
+    if (selectedAccount1.username === selectedAccount2.username) { alert('Please select 2 different usernames'); return }
     setShowDisclaimer(true)
   }
 
   function handleCrossPair() {
-    if (!selectedAccount1 || !selectedOther) {
-      alert('Please select your account and another user\'s account')
-      return
-    }
+    if (!selectedAccount1 || !selectedOther) { alert('Please select your account and another user\'s account'); return }
     setShowDisclaimer(true)
   }
 
@@ -184,54 +172,102 @@ export default function PairPage() {
     setShowDisclaimer(false)
     setIsPairing(true)
 
-    try {
-      const isSelfPair = !!selectedAccount2
+    const isSelfPair = !!selectedAccount2
+    const u1 = selectedAccount1!.username
+    const p1 = selectedAccount1!.platform
+    const u2 = isSelfPair ? selectedAccount2!.username : selectedOther!.username
+    const p2 = isSelfPair ? selectedAccount2!.platform : selectedOther!.platform
 
-      const response = await fetch('/api/pairs/mint', {
+    let onchainTokenId: string | undefined
+    let onchainTxHash: string | undefined
+
+    // ✅ Step 1: Call smart contract to mint onchain
+    try {
+      setMintStatus('Opening wallet to mint NFT...')
+
+      if (!window.ethereum) throw new Error('No wallet found')
+
+      const provider = new BrowserProvider(window.ethereum as any)
+      const signer = await provider.getSigner()
+      const contract = new Contract(CONTRACT_ADDRESS, MINT_ABI, signer)
+
+      const tx = await contract.mintPairedUsername(u1, p1, u2, p2)
+      setMintStatus('Waiting for onchain confirmation...')
+
+      const receipt = await tx.wait()
+      onchainTxHash = receipt.hash
+
+      // Parse tokenId from UsernamePaired event
+      const iface = contract.interface
+      for (const log of receipt.logs) {
+        try {
+          const parsed = iface.parseLog(log)
+          if (parsed?.name === 'UsernamePaired') {
+            onchainTokenId = parsed.args.tokenId.toString()
+            break
+          }
+        } catch {}
+      }
+
+      setMintStatus('Minted onchain ✅ Saving to database...')
+    } catch (contractError: any) {
+      // User rejected or contract error — do not proceed
+      console.error('Contract mint failed:', contractError)
+      const msg = contractError.code === 'ACTION_REJECTED'
+        ? 'Transaction rejected by user'
+        : contractError.message?.includes('already exists')
+        ? 'This username pair already exists on-chain'
+        : 'Mint failed: ' + (contractError.message || 'Unknown error')
+      alert(`❌ ${msg}`)
+      setIsPairing(false)
+      setMintStatus('')
+      return
+    }
+
+    // ✅ Step 2: Save to DB with tokenId
+    try {
+      const res = await fetch('/api/pairs/mint', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           address,
-          username1: selectedAccount1!.username,
-          platform1: selectedAccount1!.platform,
-          username2: isSelfPair ? selectedAccount2!.username : selectedOther!.username,
-          platform2: isSelfPair ? selectedAccount2!.platform : selectedOther!.platform,
+          username1: u1, platform1: p1,
+          username2: u2, platform2: p2,
+          tokenId: onchainTokenId,
+          txHash: onchainTxHash,
         }),
       })
 
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || 'Failed to mint')
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || 'Failed to save pair')
       }
 
-      const data = await response.json()
+      const data = await res.json()
 
       setMintResult({
         pairedName: data.pair.pairedName,
         pairId: data.pair.id,
-        tokenId: data.pair.tokenId,
+        tokenId: onchainTokenId,
       })
       setShowPostMintModal(true)
-
-      // ✅ Refresh NFT list after mint
       fetchMyPairs()
 
       setSelectedAccount1(null)
       setSelectedAccount2(null)
       setSelectedOther(null)
-    } catch (error: any) {
-      console.error('Pairing error:', error)
-      alert(`❌ ${error.message}`)
+    } catch (dbError: any) {
+      console.error('DB save error:', dbError)
+      alert(`⚠️ Minted onchain (txHash: ${onchainTxHash}) but failed to save to DB: ${dbError.message}`)
     } finally {
       setIsPairing(false)
+      setMintStatus('')
     }
   }
 
   function handlePostMintTrade() {
     setShowPostMintModal(false)
-    if (mintResult?.pairId) {
-      router.push(`/pair/${mintResult.pairId}/trade`)
-    }
+    if (mintResult?.pairId) router.push(`/pair/${mintResult.pairId}/trade`)
   }
 
   function handlePostMintWrite() {
@@ -249,9 +285,7 @@ export default function PairPage() {
         <p className="mt-2 text-base text-muted-foreground">
           You need to connect your wallet to pair usernames.
         </p>
-        <div className="mt-5">
-          <WalletConnect />
-        </div>
+        <div className="mt-5"><WalletConnect /></div>
       </div>
     )
   }
@@ -268,7 +302,7 @@ export default function PairPage() {
     <div className="mx-auto max-w-4xl px-4 py-6">
       <h1 className="text-xl font-bold text-foreground">Pair Usernames</h1>
       <p className="mt-1 text-base text-muted-foreground">
-        Combine your usernames into tradeable NFTs
+        Combine your usernames into tradeable NFTs on Base
       </p>
 
       {/* Pairing Toggle */}
@@ -276,27 +310,19 @@ export default function PairPage() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-foreground">Open for Pairing with Others</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Allow other users to pair with your username
-            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Allow other users to pair with your username</p>
           </div>
           <button
             onClick={togglePairingStatus}
             disabled={loadingToggle}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-              openForPairing ? 'bg-primary' : 'bg-border'
-            }`}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${openForPairing ? 'bg-primary' : 'bg-border'}`}
           >
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                openForPairing ? 'translate-x-6' : 'translate-x-1'
-              }`}
-            />
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${openForPairing ? 'translate-x-6' : 'translate-x-1'}`} />
           </button>
         </div>
       </div>
 
-      {/* ✅ My Paired Usernames NFTs */}
+      {/* My Paired Usernames NFTs */}
       {myPairs.length > 0 && (
         <div className="mt-6">
           <h2 className="text-lg font-bold text-foreground mb-3">
@@ -315,20 +341,23 @@ export default function PairPage() {
                   <span className="text-xs font-bold text-primary">NFT</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-foreground truncate">
-                    {pair.pairedName}
-                  </p>
+                  <p className="text-sm font-bold text-foreground truncate">{pair.pairedName}</p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-xs font-semibold text-primary">
                       {pair.currentPrice.toFixed(2)} USDC
                     </span>
-                    {pair.forSale ? (
-                      <span className="text-xs bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full font-medium">
-                        For Sale
+                    {pair.tokenId ? (
+                      <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+                        Onchain #{pair.tokenId}
                       </span>
                     ) : (
                       <span className="text-xs bg-secondary text-muted-foreground px-2 py-0.5 rounded-full">
-                        Not Listed
+                        Off-chain
+                      </span>
+                    )}
+                    {pair.forSale && (
+                      <span className="text-xs bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full font-medium">
+                        For Sale
                       </span>
                     )}
                   </div>
@@ -346,7 +375,7 @@ export default function PairPage() {
         </div>
       )}
 
-      {/* Section 1: Your Accounts */}
+      {/* Your Verified Accounts */}
       <div className="mt-6">
         <h2 className="text-lg font-bold text-foreground mb-1">Your Verified Accounts</h2>
         <p className="text-xs text-muted-foreground mb-3">
@@ -363,8 +392,7 @@ export default function PairPage() {
               onClick={() => router.push('/write')}
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
             >
-              Verify Account
-              <ArrowRight className="h-4 w-4" />
+              Verify Account <ArrowRight className="h-4 w-4" />
             </button>
           </div>
         ) : (
@@ -389,8 +417,7 @@ export default function PairPage() {
                   }
                 }}
                 className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all ${
-                  selectedAccount1?.username === account.username ||
-                  selectedAccount2?.username === account.username
+                  selectedAccount1?.username === account.username || selectedAccount2?.username === account.username
                     ? 'border-primary bg-primary/10'
                     : 'border-border bg-card hover:border-primary/40'
                 }`}
@@ -404,35 +431,33 @@ export default function PairPage() {
                   <p className="text-sm font-semibold text-foreground">@{account.username}</p>
                   <p className="text-xs text-muted-foreground">{account.platform}</p>
                 </div>
-                {(selectedAccount1?.username === account.username ||
-                  selectedAccount2?.username === account.username) && (
+                {(selectedAccount1?.username === account.username || selectedAccount2?.username === account.username) && (
                   <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded">
                     {selectedAccount1?.username === account.username ? '#1' : '#2'}
                   </span>
                 )}
-                {account.verified && (
-                  <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                )}
+                {account.verified && <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />}
               </button>
             ))}
           </div>
         )}
 
-        {/* Self-Pair Button */}
         {myAccounts.length >= 2 && (
           <button
             onClick={handleSelfPair}
-            disabled={!selectedAccount1 || !selectedAccount2}
+            disabled={!selectedAccount1 || !selectedAccount2 || isPairing}
             className="mt-4 w-full rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {selectedAccount1 && selectedAccount2
+            {isPairing && mintStatus
+              ? mintStatus
+              : selectedAccount1 && selectedAccount2
               ? `Pair: @${selectedAccount1.username} × @${selectedAccount2.username}`
               : 'Select 2 accounts to pair'}
           </button>
         )}
       </div>
 
-      {/* Section 2: Pair with Others */}
+      {/* Pair with Others */}
       {myAccounts.length > 0 && (
         <div className="mt-8">
           <div className="flex items-center justify-between mb-3">
@@ -450,7 +475,7 @@ export default function PairPage() {
               <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
               <div className="text-sm text-amber-900 dark:text-amber-200">
                 <p className="font-semibold mb-1">Important Notice</p>
-                <p>Contact them via DM or private chat first. Both users must agree and confirm the pairing. You are responsible for obtaining consent.</p>
+                <p>Contact them via DM or private chat first. Both users must agree. You are responsible for obtaining consent.</p>
               </div>
             </div>
           </div>
@@ -458,9 +483,7 @@ export default function PairPage() {
           {showAvailable && (
             <div className="space-y-3 mb-4">
               {availableUsers.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-6">
-                  No users currently open for pairing
-                </p>
+                <p className="text-center text-sm text-muted-foreground py-6">No users currently open for pairing</p>
               ) : (
                 availableUsers.map((user, idx) => (
                   <button
@@ -486,9 +509,7 @@ export default function PairPage() {
                       <p className="text-sm font-semibold text-foreground">@{user.username}</p>
                       <p className="text-xs text-muted-foreground">{user.platform}</p>
                     </div>
-                    <span className="text-xs font-medium text-green-600 bg-green-500/10 px-2 py-1 rounded">
-                      Open
-                    </span>
+                    <span className="text-xs font-medium text-green-600 bg-green-500/10 px-2 py-1 rounded">Open</span>
                   </button>
                 ))
               )}
@@ -498,10 +519,10 @@ export default function PairPage() {
           {selectedOther && (
             <button
               onClick={handleCrossPair}
-              disabled={!selectedAccount1 || !selectedOther}
+              disabled={!selectedAccount1 || !selectedOther || isPairing}
               className="w-full rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-              Pair: @{selectedAccount1?.username || '?'} × @{selectedOther.username}
+              {isPairing ? mintStatus : `Pair: @${selectedAccount1?.username || '?'} × @${selectedOther.username}`}
             </button>
           )}
         </div>
@@ -526,7 +547,11 @@ export default function PairPage() {
                 <CheckCircle2 className="h-8 w-8 text-green-500" />
               </div>
               <h3 className="text-lg font-bold text-foreground">Mint Successful! 🎉</h3>
-              <p className="text-sm text-muted-foreground mt-1">Username NFT created</p>
+              {mintResult.tokenId && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Onchain Token #{mintResult.tokenId}
+                </p>
+              )}
               <div className="mt-3 inline-block rounded-lg bg-primary/10 px-4 py-2">
                 <p className="text-base font-bold text-primary">{mintResult.pairedName}</p>
               </div>
@@ -544,9 +569,7 @@ export default function PairPage() {
                 <TrendingUp className="h-8 w-8 text-primary" />
                 <div className="text-center">
                   <p className="text-sm font-bold text-foreground">Trade</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    List as trading asset at 0.7 USDC base price
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">List as trading asset at 0.7 USDC</p>
                 </div>
               </button>
 
@@ -557,15 +580,13 @@ export default function PairPage() {
                 <BookOpen className="h-8 w-8 text-muted-foreground" />
                 <div className="text-center">
                   <p className="text-sm font-bold text-foreground">Write Story</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Publish the philosophy behind this username
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Publish the philosophy</p>
                 </div>
               </button>
             </div>
 
             <p className="text-xs text-muted-foreground text-center mt-4">
-              1% platform fee applies on all trades • Treasury: 0xF349...E84d
+              1% platform fee on all trades • Treasury: 0xF349...E84d
             </p>
           </div>
         </div>

@@ -3,19 +3,33 @@
 /**
  * components/trading-terminal.tsx
  *
- * FIXES:
- * - Sell/List now updates DB via API instead of calling smart contract
- *   because mint route only creates DB record (no onchain tokenId exists yet)
- * - Buy also uses DB-based flow for same reason
- * - Contract calls are preserved as commented code for when onchain mint is implemented
- * - isOwner now checked via API (creator field) instead of contract ownerOf()
- * - "Failed to list" error is resolved — no more parseInt(cuid) = NaN issue
+ * ONCHAIN UPGRADE:
+ * - handleListForSale/handleSell: calls contract.listForSale(tokenId, priceInWei)
+ * - handleBuy: approve USDC → contract.buyPairedUsername(tokenId)
+ * - Falls back to DB-only if tokenId is null/undefined (legacy off-chain records)
+ * - ownerAddress updated in DB after successful buy via PATCH /api/pairs/[id]
+ * - ethers v6: BigInt comparison, no .lt()
  */
 
 import { useState, useEffect } from "react"
 import { useAccount } from "wagmi"
 import { TrendingUp, TrendingDown, Activity, DollarSign, BarChart3, X, Tag } from "lucide-react"
 import { useRouter } from "next/navigation"
+import { BrowserProvider, Contract, parseUnits } from "ethers"
+
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_USERNAME_NFT_CONTRACT!
+const USDC_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913'
+
+const CONTRACT_ABI = [
+  'function listForSale(uint256 tokenId, uint256 price) external',
+  'function buyPairedUsername(uint256 tokenId) external',
+  'function ownerOf(uint256 tokenId) view returns (address)',
+]
+
+const USDC_ABI = [
+  'function approve(address spender, uint256 amount) external returns (bool)',
+  'function allowance(address owner, address spender) external view returns (uint256)',
+]
 
 interface TradingTerminalProps {
   pairedUsername: string
@@ -23,8 +37,9 @@ interface TradingTerminalProps {
   username2: string
   currentPrice: number
   pairId: string
-  tokenId: string
-  creator?: string // wallet address of NFT creator
+  tokenId: string       // DB cuid — used to hit API
+  onchainTokenId?: number | null  // uint256 from contract — used for contract calls
+  creator?: string
 }
 
 interface Trade {
@@ -42,6 +57,7 @@ export function TradingTerminal({
   currentPrice,
   pairId,
   tokenId,
+  onchainTokenId,
   creator,
 }: TradingTerminalProps) {
   const { address } = useAccount()
@@ -50,14 +66,15 @@ export function TradingTerminal({
   const [orderType, setOrderType] = useState<'buy' | 'sell'>('buy')
   const [price, setPrice] = useState(currentPrice.toString())
   const [isTrading, setIsTrading] = useState(false)
+  const [txStatus, setTxStatus] = useState<string>('')
   const [recentTrades, setRecentTrades] = useState<Trade[]>([])
   const [highPrice, setHighPrice] = useState(currentPrice)
   const [lowPrice, setLowPrice] = useState(currentPrice)
-  const [txStatus, setTxStatus] = useState<string>('')
   const [isForSale, setIsForSale] = useState(false)
   const [currentOwner, setCurrentOwner] = useState<string>(creator || '')
 
   const isOwner = address?.toLowerCase() === currentOwner?.toLowerCase()
+  const isOnchain = !!onchainTokenId // true = real NFT exists on Base
 
   useEffect(() => {
     fetchPairStatus()
@@ -72,17 +89,17 @@ export function TradingTerminal({
       const data = await res.json()
       if (data.pair) {
         setIsForSale(data.pair.forSale)
-        setCurrentOwner(data.pair.creator)
+        setCurrentOwner(data.pair.ownerAddress || data.pair.creator)
       }
-    } catch (err) {
-      console.error('Failed to fetch pair status:', err)
+    } catch (e) {
+      console.error('fetchPairStatus error:', e)
     }
   }
 
   async function fetchTrades() {
     try {
-      const response = await fetch(`/api/pairs/${pairId}/trade`)
-      const data = await response.json()
+      const res = await fetch(`/api/pairs/${pairId}/trade`)
+      const data = await res.json()
       if (data.trades) {
         setRecentTrades(data.trades.slice(0, 5))
         const prices = data.trades.map((t: Trade) => t.price)
@@ -91,122 +108,149 @@ export function TradingTerminal({
           setLowPrice(Math.min(...prices))
         }
       }
-    } catch (error) {
-      console.error('Failed to fetch trades:', error)
+    } catch (e) {
+      console.error('fetchTrades error:', e)
     }
   }
 
-  // ✅ List for sale via DB (off-chain) — no contract call needed
+  // ✅ Save trade to DB after onchain confirmation
+  async function recordTrade(type: string, tradePrice: number, txHash: string) {
+    await fetch(`/api/pairs/${pairId}/trade`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ from: address, type, price: tradePrice, txHash, status: 'confirmed' }),
+    })
+  }
+
+  // ✅ Update ownerAddress in DB after buy
+  async function updateOwner(newOwner: string) {
+    await fetch(`/api/pairs/${pairId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ownerAddress: newOwner, forSale: false }),
+    }).catch(console.error)
+  }
+
   const handleListForSale = async () => {
-    if (!address) { alert('Please connect wallet first'); return }
+    if (!address) { alert('Connect wallet first'); return }
     const listPrice = parseFloat(price)
-    if (isNaN(listPrice) || listPrice < 0.7) { alert('Price must be at least 0.7 USDC'); return }
+    if (isNaN(listPrice) || listPrice < 0.7) { alert('Minimum 0.7 USDC'); return }
 
     setIsTrading(true)
-    setTxStatus('Listing for sale...')
 
-    try {
-      // Update DB via trade route — type 'list' sets forSale = true
-      const res = await fetch(`/api/pairs/${pairId}/trade`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: address,
-          type: 'list',
-          price: listPrice,
-          txHash: `list-${address.slice(2, 8)}-${Date.now()}`, // off-chain placeholder
-        }),
-      })
+    if (isOnchain) {
+      // ✅ Onchain listing
+      setTxStatus('Opening wallet...')
+      try {
+        const provider = new BrowserProvider(window.ethereum as any)
+        const signer = await provider.getSigner()
+        const contract = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer)
+        const priceInWei = parseUnits(listPrice.toString(), 6)
 
-      if (!res.ok) throw new Error('Failed to list')
+        const tx = await contract.listForSale(onchainTokenId!, priceInWei)
+        setTxStatus('Waiting for confirmation...')
+        const receipt = await tx.wait()
 
-      setIsForSale(true)
-      setTxStatus('')
-      alert(`✅ Listed ${pairedUsername} for ${listPrice} USDC!`)
-      fetchTrades()
-    } catch (error: any) {
-      alert(error.message || 'Failed to list')
-      setTxStatus('')
-    } finally {
-      setIsTrading(false)
+        await recordTrade('list', listPrice, receipt.hash)
+        setIsForSale(true)
+        setTxStatus('')
+        alert(`✅ Listed onchain for ${listPrice} USDC!`)
+        fetchTrades()
+      } catch (e: any) {
+        alert(e.code === 'ACTION_REJECTED' ? 'Transaction rejected' : e.message || 'Failed to list')
+        setTxStatus('')
+      }
+    } else {
+      // Fallback: DB-only listing for legacy off-chain NFTs
+      setTxStatus('Listing...')
+      try {
+        await recordTrade('list', listPrice, `list-${address!.slice(2, 8)}-${Date.now()}`)
+        setIsForSale(true)
+        alert(`✅ Listed for ${listPrice} USDC (off-chain)`)
+      } catch (e: any) {
+        alert('Failed to list')
+      } finally {
+        setTxStatus('')
+      }
     }
+
+    setIsTrading(false)
   }
 
-  // ✅ Sell (re-list at new price) via DB
-  const handleSell = async () => {
-    if (!address) { alert('Please connect wallet first'); return }
-    const tradePrice = parseFloat(price)
-    if (isNaN(tradePrice) || tradePrice < 0.7) { alert('Price must be at least 0.7 USDC'); return }
-
-    setIsTrading(true)
-    setTxStatus('Listing at new price...')
-
-    try {
-      const res = await fetch(`/api/pairs/${pairId}/trade`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: address,
-          type: 'list',
-          price: tradePrice,
-          txHash: `relist-${address.slice(2, 8)}-${Date.now()}`,
-        }),
-      })
-
-      if (!res.ok) throw new Error('Failed to list')
-
-      setIsForSale(true)
-      setTxStatus('')
-      alert(`✅ Listed ${pairedUsername} for ${tradePrice} USDC!`)
-      fetchTrades()
-    } catch (error: any) {
-      alert(error.message || 'Failed to list')
-      setTxStatus('')
-    } finally {
-      setIsTrading(false)
-    }
-  }
-
-  // ✅ Buy via DB — transfers ownership in DB
   const handleBuy = async () => {
-    if (!address) { alert('Please connect wallet first'); return }
-    if (!isForSale) { alert('Not listed for sale yet — owner must list it first'); return }
+    if (!address) { alert('Connect wallet first'); return }
+    if (!isForSale) { alert('Not listed for sale yet'); return }
     if (isOwner) { alert('You already own this NFT'); return }
 
     const tradePrice = parseFloat(price)
-    if (isNaN(tradePrice) || tradePrice < 0.7) { alert('Price must be at least 0.7 USDC'); return }
+    if (isNaN(tradePrice) || tradePrice < 0.7) { alert('Minimum 0.7 USDC'); return }
 
     setIsTrading(true)
-    setTxStatus('Processing purchase...')
 
-    try {
-      // In production: add USDC transfer here via ethers/wagmi before recording trade
-      // For now: record trade in DB (off-chain)
-      const res = await fetch(`/api/pairs/${pairId}/trade`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          from: address,
-          type: 'buy',
-          price: tradePrice,
-          txHash: `buy-${address.slice(2, 8)}-${Date.now()}`,
-        }),
-      })
+    if (isOnchain) {
+      // ✅ Real onchain buy with USDC approve
+      setTxStatus('Approving USDC...')
+      try {
+        const provider = new BrowserProvider(window.ethereum as any)
+        const signer = await provider.getSigner()
+        const priceInWei = parseUnits(tradePrice.toString(), 6)
 
-      if (!res.ok) throw new Error('Failed to buy')
+        // Approve USDC
+        const usdc = new Contract(USDC_ADDRESS, USDC_ABI, signer)
+        const allowance: bigint = await usdc.allowance(address, CONTRACT_ADDRESS)
+        if (allowance < priceInWei) {
+          const approveTx = await usdc.approve(CONTRACT_ADDRESS, priceInWei)
+          setTxStatus('Approving...')
+          await approveTx.wait()
+        }
 
-      setIsForSale(false)
-      setCurrentOwner(address)
-      setTxStatus('')
-      alert(`✅ Bought ${pairedUsername} for ${tradePrice} USDC!`)
-      fetchTrades()
-      fetchPairStatus()
-    } catch (error: any) {
-      alert(error.message || 'Failed to buy')
-      setTxStatus('')
-    } finally {
-      setIsTrading(false)
+        // Buy
+        setTxStatus('Buying...')
+        const contract = new Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer)
+        const buyTx = await contract.buyPairedUsername(onchainTokenId!)
+        setTxStatus('Confirming...')
+        const receipt = await buyTx.wait()
+
+        await recordTrade('buy', tradePrice, receipt.hash)
+        await updateOwner(address)
+
+        setIsForSale(false)
+        setCurrentOwner(address)
+        setTxStatus('')
+        alert(`✅ Bought ${pairedUsername} for ${tradePrice} USDC!`)
+        fetchTrades()
+        fetchPairStatus()
+      } catch (e: any) {
+        const msg = e.code === 'ACTION_REJECTED' ? 'Transaction rejected'
+          : e.message?.includes('insufficient') ? 'Insufficient USDC balance'
+          : e.message?.includes('Not for sale') ? 'NFT is not for sale'
+          : e.message || 'Failed to buy'
+        alert(msg)
+        setTxStatus('')
+      }
+    } else {
+      // Fallback: DB-only for off-chain records
+      setTxStatus('Processing...')
+      try {
+        await recordTrade('buy', tradePrice, `buy-${address!.slice(2, 8)}-${Date.now()}`)
+        await updateOwner(address)
+        setIsForSale(false)
+        setCurrentOwner(address)
+        alert(`✅ Bought ${pairedUsername} (off-chain record)`)
+        fetchTrades()
+      } catch (e: any) {
+        alert('Failed to buy')
+      } finally {
+        setTxStatus('')
+      }
     }
+
+    setIsTrading(false)
+  }
+
+  const handleSell = async () => {
+    // Sell = re-list at new price
+    await handleListForSale()
   }
 
   const handleTrade = () => orderType === 'buy' ? handleBuy() : handleSell()
@@ -224,6 +268,11 @@ export function TradingTerminal({
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-primary" />
               <h3 className="text-lg font-bold text-foreground">{tradingPair}</h3>
+              {isOnchain && (
+                <span className="text-xs bg-blue-500/10 text-blue-600 px-2 py-0.5 rounded-full font-medium">
+                  Onchain #{onchainTokenId}
+                </span>
+              )}
               {isForSale && (
                 <span className="text-xs bg-green-500/10 text-green-600 px-2 py-0.5 rounded-full font-medium">
                   For Sale
@@ -242,33 +291,24 @@ export function TradingTerminal({
 
       {/* Price Display */}
       <div className="grid grid-cols-4 gap-3 p-4 border-b border-border bg-secondary/30">
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">Current Price</p>
-          <p className="text-lg font-bold text-foreground">{currentPrice.toFixed(2)}</p>
-          <p className="text-xs text-muted-foreground">USDC</p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">24h Change</p>
-          <p className={`text-lg font-bold ${priceChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-            {priceChange >= 0 ? '+' : ''}{priceChange.toFixed(2)}
-          </p>
-          <p className={`text-xs ${priceChange >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-            {priceChange >= 0 ? '+' : ''}{priceChangePercent}%
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">24h High</p>
-          <p className="text-lg font-bold text-foreground">{highPrice.toFixed(2)}</p>
-          <p className="text-xs text-muted-foreground">USDC</p>
-        </div>
-        <div>
-          <p className="text-xs text-muted-foreground mb-1">24h Low</p>
-          <p className="text-lg font-bold text-foreground">{lowPrice.toFixed(2)}</p>
-          <p className="text-xs text-muted-foreground">USDC</p>
-        </div>
+        {[
+          { label: 'Current Price', value: currentPrice.toFixed(2) },
+          { label: '24h Change', value: `${priceChange >= 0 ? '+' : ''}${priceChange.toFixed(2)}`, sub: `${priceChange >= 0 ? '+' : ''}${priceChangePercent}%`, color: priceChange >= 0 },
+          { label: '24h High', value: highPrice.toFixed(2) },
+          { label: '24h Low', value: lowPrice.toFixed(2) },
+        ].map((item, i) => (
+          <div key={i}>
+            <p className="text-xs text-muted-foreground mb-1">{item.label}</p>
+            <p className={`text-lg font-bold ${item.color !== undefined ? (item.color ? 'text-green-500' : 'text-red-500') : 'text-foreground'}`}>
+              {item.value}
+            </p>
+            {item.sub && <p className={`text-xs ${item.color ? 'text-green-500' : 'text-red-500'}`}>{item.sub}</p>}
+            {!item.sub && <p className="text-xs text-muted-foreground">USDC</p>}
+          </div>
+        ))}
       </div>
 
-      {/* Owner: List for Sale notice */}
+      {/* List for Sale notice */}
       {isOwner && !isForSale && (
         <div className="mx-4 mt-4 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 flex items-center justify-between gap-3">
           <p className="text-xs text-amber-800 dark:text-amber-200">
@@ -280,7 +320,7 @@ export function TradingTerminal({
             className="flex items-center gap-1.5 rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600 disabled:opacity-50 shrink-0"
           >
             <Tag className="h-3.5 w-3.5" />
-            {isTrading ? 'Listing...' : 'List for Sale'}
+            {isTrading ? txStatus || 'Listing...' : `List for Sale ${isOnchain ? '(Onchain)' : ''}`}
           </button>
         </div>
       )}
@@ -296,25 +336,15 @@ export function TradingTerminal({
           <div className="grid grid-cols-2 gap-2 mb-4">
             <button
               onClick={() => setOrderType('buy')}
-              className={`rounded-lg py-2.5 font-semibold transition-all ${
-                orderType === 'buy'
-                  ? 'bg-green-500 text-white'
-                  : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
-              }`}
+              className={`rounded-lg py-2.5 font-semibold transition-all ${orderType === 'buy' ? 'bg-green-500 text-white' : 'bg-secondary text-muted-foreground'}`}
             >
-              <TrendingUp className="inline h-4 w-4 mr-1.5" />
-              Buy
+              <TrendingUp className="inline h-4 w-4 mr-1.5" />Buy
             </button>
             <button
               onClick={() => setOrderType('sell')}
-              className={`rounded-lg py-2.5 font-semibold transition-all ${
-                orderType === 'sell'
-                  ? 'bg-red-500 text-white'
-                  : 'bg-secondary text-muted-foreground hover:bg-secondary/80'
-              }`}
+              className={`rounded-lg py-2.5 font-semibold transition-all ${orderType === 'sell' ? 'bg-red-500 text-white' : 'bg-secondary text-muted-foreground'}`}
             >
-              <TrendingDown className="inline h-4 w-4 mr-1.5" />
-              Sell
+              <TrendingDown className="inline h-4 w-4 mr-1.5" />Sell
             </button>
           </div>
 
@@ -322,36 +352,18 @@ export function TradingTerminal({
             <label className="block text-xs font-medium text-muted-foreground mb-2">Price (USDC)</label>
             <div className="relative">
               <input
-                type="number"
-                step="0.01"
-                min="0.7"
-                value={price}
+                type="number" step="0.01" min="0.7" value={price}
                 onChange={(e) => setPrice(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 pr-16 text-base font-mono text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 pr-16 text-base font-mono text-foreground outline-none focus:border-primary"
                 placeholder="0.70"
               />
-              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-medium text-muted-foreground">
-                USDC
-              </span>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">USDC</span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Min: 0.7 USDC • Market: {currentPrice.toFixed(2)} USDC
-            </p>
-          </div>
-
-          <div className="mb-4">
-            <label className="block text-xs font-medium text-muted-foreground mb-2">Amount</label>
-            <input
-              type="number"
-              defaultValue="1"
-              disabled
-              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-base font-mono text-foreground outline-none opacity-50"
-            />
-            <p className="text-xs text-muted-foreground mt-1">Fixed at 1 share per transaction</p>
+            <p className="text-xs text-muted-foreground mt-1">Min: 0.7 • Market: {currentPrice.toFixed(2)} USDC</p>
           </div>
 
           <div className="rounded-lg bg-secondary/50 p-3 mb-4">
-            <div className="flex items-center justify-between text-sm">
+            <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Total</span>
               <span className="font-bold text-foreground">{parseFloat(price || '0').toFixed(2)} USDC</span>
             </div>
@@ -373,36 +385,24 @@ export function TradingTerminal({
 
           <button
             onClick={handleTrade}
-            disabled={
-              isTrading ||
-              !price ||
-              parseFloat(price) < 0.7 ||
-              !address ||
-              (orderType === 'buy' && !isForSale) ||
-              (orderType === 'buy' && isOwner)
-            }
-            className={`w-full rounded-lg py-3.5 font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-              orderType === 'buy'
-                ? 'bg-green-500 hover:bg-green-600 active:scale-95'
-                : 'bg-red-500 hover:bg-red-600 active:scale-95'
-            }`}
+            disabled={isTrading || parseFloat(price) < 0.7 || !address || (orderType === 'buy' && (!isForSale || isOwner))}
+            className={`w-full rounded-lg py-3.5 font-bold text-white transition-all disabled:opacity-50 disabled:cursor-not-allowed ${orderType === 'buy' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'}`}
           >
-            {!address ? 'Connect Wallet First'
-              : isTrading ? 'Processing...'
+            {!address ? 'Connect Wallet'
+              : isTrading ? (txStatus || 'Processing...')
               : isOwner && orderType === 'buy' ? 'You own this NFT'
               : `${orderType === 'buy' ? 'Buy' : 'Sell/List'} ${tradingPair}`}
           </button>
 
           <p className="text-xs text-muted-foreground text-center mt-3">
-            ⚠️ Off-chain listing • Onchain settlement coming soon
+            {isOnchain ? '⛽ Gas fee required from your wallet' : '⚠️ Off-chain record — mint new pair for onchain trading'}
           </p>
         </div>
 
         {/* Recent Trades */}
         <div className="p-4">
           <h4 className="text-sm font-bold text-foreground mb-3 flex items-center gap-2">
-            <BarChart3 className="h-4 w-4" />
-            Recent Trades
+            <BarChart3 className="h-4 w-4" />Recent Trades
           </h4>
 
           {recentTrades.length === 0 ? (
@@ -415,23 +415,15 @@ export function TradingTerminal({
               {recentTrades.map((trade) => (
                 <div key={trade.id} className="flex items-center justify-between rounded-lg bg-secondary/30 p-2.5">
                   <div className="flex items-center gap-2">
-                    {trade.type === 'buy'
-                      ? <TrendingUp className="h-4 w-4 text-green-500" />
-                      : <TrendingDown className="h-4 w-4 text-red-500" />}
+                    {trade.type === 'buy' ? <TrendingUp className="h-4 w-4 text-green-500" /> : <TrendingDown className="h-4 w-4 text-red-500" />}
                     <div>
-                      <p className={`text-sm font-bold ${trade.type === 'buy' ? 'text-green-500' : 'text-red-500'}`}>
-                        {trade.type.toUpperCase()}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {trade.from.slice(0, 6)}...{trade.from.slice(-4)}
-                      </p>
+                      <p className={`text-sm font-bold ${trade.type === 'buy' ? 'text-green-500' : 'text-red-500'}`}>{trade.type.toUpperCase()}</p>
+                      <p className="text-xs text-muted-foreground">{trade.from.slice(0, 6)}...{trade.from.slice(-4)}</p>
                     </div>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold text-foreground">{trade.price.toFixed(2)} USDC</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(trade.createdAt).toLocaleTimeString()}
-                    </p>
+                    <p className="text-xs text-muted-foreground">{new Date(trade.createdAt).toLocaleTimeString()}</p>
                   </div>
                 </div>
               ))}
@@ -441,26 +433,11 @@ export function TradingTerminal({
           <div className="mt-4 rounded-lg border border-border bg-accent/40 p-3">
             <p className="text-xs font-medium text-foreground mb-2">📊 Trading Info</p>
             <div className="space-y-1.5 text-xs text-muted-foreground">
-              <div className="flex justify-between">
-                <span>Asset Type:</span>
-                <span className="font-medium text-foreground">Paired Username NFT</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Token ID:</span>
-                <span className="font-medium text-foreground">#{tokenId.slice(0, 8)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Starting Price:</span>
-                <span className="font-medium text-foreground">0.7 USDC</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Network:</span>
-                <span className="font-medium text-foreground">Base</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Platform Fee:</span>
-                <span className="font-medium text-foreground">1% (to treasury)</span>
-              </div>
+              <div className="flex justify-between"><span>Asset Type:</span><span className="font-medium text-foreground">Paired Username NFT</span></div>
+              <div className="flex justify-between"><span>Token ID:</span><span className="font-medium text-foreground">{onchainTokenId ? `#${onchainTokenId}` : 'Off-chain'}</span></div>
+              <div className="flex justify-between"><span>Starting Price:</span><span className="font-medium text-foreground">0.7 USDC</span></div>
+              <div className="flex justify-between"><span>Network:</span><span className="font-medium text-foreground">Base Mainnet</span></div>
+              <div className="flex justify-between"><span>Platform Fee:</span><span className="font-medium text-foreground">1% (to treasury)</span></div>
             </div>
           </div>
         </div>

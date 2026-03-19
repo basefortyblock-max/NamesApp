@@ -2,30 +2,27 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_USERNAME_NFT_CONTRACT || '0x0000000000000000000000000000000000000000'
+const CONTRACT_ADDRESS = process.env.NEXT_PUBLIC_USERNAME_NFT_CONTRACT || ''
 
 export async function POST(request: NextRequest) {
   try {
-    const { address, username1, platform1, username2, platform2 } = await request.json()
+    const {
+      address,
+      username1, platform1,
+      username2, platform2,
+      tokenId,       // ✅ uint256 from contract event (optional for legacy)
+      txHash,        // ✅ onchain mint tx hash
+    } = await request.json()
 
     if (!address || !username1 || !username2 || !platform1 || !platform2) {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
 
-    // ✅ Removed platform check — same platform is allowed
-    // Only check that the two usernames are different
     if (username1 === username2) {
-      return NextResponse.json(
-        { error: 'Please select 2 different usernames' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'Please select 2 different usernames' }, { status: 400 })
     }
 
-    // ✅ Fixed verification query — lookup user by address first, then check stories
-    // Previous query used userId: address which is wrong (userId is cuid, not wallet address)
+    // Verify both usernames belong to this wallet
     const user = await prisma.user.findUnique({
       where: { address },
       include: {
@@ -42,34 +39,29 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       return NextResponse.json(
-        { error: 'User not found. Please connect your wallet and publish a story first.' },
+        { error: 'User not found. Connect wallet and publish a story first.' },
         { status: 400 }
       )
     }
 
     if (user.stories.length < 2) {
       return NextResponse.json(
-        { error: 'Both usernames must belong to your account. Please publish stories for both usernames first.' },
+        { error: 'Both usernames must belong to your account.' },
         { status: 400 }
       )
     }
 
-    // Generate paired name
     const pairedName = `${username1}×${username2}`
 
-    // Check if pair already exists
     const existingPair = await prisma.pairedUsername.findUnique({
       where: { pairedName },
     })
 
     if (existingPair) {
-      return NextResponse.json(
-        { error: 'This username pair already exists' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'This username pair already exists' }, { status: 400 })
     }
 
-    console.log(`[Mint Pair] Contract: ${CONTRACT_ADDRESS}, creator: ${address}`)
+    console.log(`[Mint] Contract: ${CONTRACT_ADDRESS}, tokenId: ${tokenId}, creator: ${address}`)
 
     const pair = await prisma.pairedUsername.create({
       data: {
@@ -79,10 +71,26 @@ export async function POST(request: NextRequest) {
         platform2,
         pairedName,
         creator: address,
+        ownerAddress: address,  // ✅ creator is initial owner
+        tokenId: tokenId ? parseInt(tokenId.toString()) : null, // ✅ save uint256 tokenId
         currentPrice: 0.7,
         forSale: false,
       },
     })
+
+    // If onchain mint — record it as a trade
+    if (txHash && tokenId) {
+      await prisma.trade.create({
+        data: {
+          pairedUsernameId: pair.id,
+          from: address,
+          type: 'mint',
+          price: 0.7,
+          txHash,
+          status: 'confirmed',
+        },
+      }).catch(() => {}) // non-blocking
+    }
 
     return NextResponse.json({ success: true, pair }, { status: 201 })
 
@@ -90,10 +98,7 @@ export async function POST(request: NextRequest) {
     console.error('Mint pair error:', error)
 
     if (error.code === 'P2002') {
-      return NextResponse.json(
-        { error: 'This username pair already exists' },
-        { status: 400 }
-      )
+      return NextResponse.json({ error: 'This username pair already exists' }, { status: 400 })
     }
 
     return NextResponse.json(
