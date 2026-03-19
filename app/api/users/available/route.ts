@@ -1,80 +1,49 @@
+// app/api/users/available/route.ts
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// GET - Get list of users available for pairing
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
-    const currentAddress = searchParams.get('currentAddress')
-    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 10
-    const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : 0
+    const currentAddress = searchParams.get('currentAddress') // ✅ now optional
 
-    if (!currentAddress) {
-      return NextResponse.json(
-        { error: 'currentAddress required' },
-        { status: 400 }
-      )
-    }
-
-    // Get users open for pairing, excluding the current user
-    const users = await prisma.user.findMany({
-      where: {
-        openForPairing: true,
-        address: { not: currentAddress },
-      },
+    // Get all users who have published stories
+    // If currentAddress provided, exclude them
+    const stories = await prisma.story.findMany({
+      distinct: ['userId'],
+      where: currentAddress
+        ? { user: { address: { not: currentAddress } } }
+        : undefined,
       select: {
-        id: true,
-        address: true,
-        basename: true,
-        balance: true,
+        username: true,
+        platform: true,
+        verified: true,
         createdAt: true,
+        user: {
+          select: {
+            address: true,
+            openForPairing: true,
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
-      take: limit,
-      skip: offset,
     })
 
-    // Get total count for pagination
-    const total = await prisma.user.count({
-      where: {
-        openForPairing: true,
-        address: { not: currentAddress },
-      },
-    })
+    // ✅ Return flat format matching what pair/page.tsx expects
+    const users = stories.map(s => ({
+      address: s.user.address,
+      username: s.username,
+      platform: s.platform,
+      verified: s.verified,
+      openForPairing: s.user.openForPairing,
+      createdAt: s.createdAt,
+    }))
 
-    // Also get their verified accounts for context
-    const usersWithVerifications = await Promise.all(
-      users.map(async (user) => {
-        const verifications = await prisma.socialVerification.findMany({
-          where: { userId: user.id },
-          select: {
-            platform: true,
-            username: true,
-            verified: true,
-          },
-        })
-
-        return {
-          ...user,
-          verifications,
-        }
-      })
-    )
-
-    return NextResponse.json({
-      users: usersWithVerifications,
-      total,
-      limit,
-      offset,
-      hasMore: offset + limit < total,
-    })
+    return NextResponse.json({ users })
   } catch (error: any) {
     console.error('Get available users error:', error)
     return NextResponse.json(
-      {
-        error: 'Failed to fetch available users',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      },
+      { error: 'Failed to fetch available users' },
       { status: 500 }
     )
   }

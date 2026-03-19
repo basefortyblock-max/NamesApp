@@ -145,7 +145,7 @@ function PairPageContent() {
 
   async function fetchAvailableUsers() {
     try {
-      const res = await fetch('/api/users/available')
+      const res = await fetch(`/api/users/available?currentAddress=${address}`)
       const data = await res.json()
       setAvailableUsers(
         data.users?.filter((u: AvailableUser) =>
