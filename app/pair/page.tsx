@@ -3,14 +3,12 @@
 /**
  * app/pair/page.tsx
  *
- * FIXES:
- * - Added useSearchParams to read ?user= query param from Explore page
- * - When ?user= is present, auto-triggers fetchAvailableUsers and pre-selects
- *   the target user so Pair button from Explore works correctly
- * - showAvailable auto-opens when ?user= param exists
+ * FIX: useSearchParams() must be wrapped in <Suspense> in Next.js App Router.
+ * Solution: extract the main component into PairPageContent,
+ * wrap it with Suspense in the default export.
  */
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useAccount } from "wagmi"
 import { useRouter, useSearchParams } from "next/navigation"
 import { WalletConnect } from "@/components/connect-wallet-button"
@@ -59,10 +57,11 @@ interface PairData {
   createdAt: string
 }
 
-export default function PairPage() {
+// ✅ Inner component uses useSearchParams — must be inside <Suspense>
+function PairPageContent() {
   const { isConnected, address } = useAccount()
   const router = useRouter()
-  const searchParams = useSearchParams() // ✅ read ?user= from Explore
+  const searchParams = useSearchParams()
 
   const [myAccounts, setMyAccounts] = useState<UserAccount[]>([])
   const [loadingAccounts, setLoadingAccounts] = useState(true)
@@ -88,30 +87,24 @@ export default function PairPage() {
     }
   }, [address])
 
-  // ✅ Auto-open available users section when coming from Explore (?user=)
+  // ✅ Auto-open available users when ?user= param exists
   useEffect(() => {
     const userParam = searchParams.get('user')
-    if (userParam) {
-      setShowAvailable(true) // triggers fetchAvailableUsers via next useEffect
-    }
+    if (userParam) setShowAvailable(true)
   }, [searchParams])
 
-  // Fetch available users when section is opened
   useEffect(() => {
     if (showAvailable) fetchAvailableUsers()
   }, [showAvailable])
 
-  // ✅ Pre-select user from ?user= query param after availableUsers loads
+  // ✅ Pre-select user after availableUsers loads
   useEffect(() => {
     const userParam = searchParams.get('user')
     if (!userParam || availableUsers.length === 0) return
-
     const found = availableUsers.find(
       u => u.address.toLowerCase() === userParam.toLowerCase()
     )
-    if (found) {
-      setSelectedOther(found)
-    }
+    if (found) setSelectedOther(found)
   }, [searchParams, availableUsers])
 
   async function fetchMyAccounts() {
@@ -152,7 +145,6 @@ export default function PairPage() {
 
   async function fetchAvailableUsers() {
     try {
-      // ✅ Uses /api/users/available (plural) which has full user+story data
       const res = await fetch('/api/users/available')
       const data = await res.json()
       setAvailableUsers(
@@ -183,22 +175,13 @@ export default function PairPage() {
   }
 
   function handleSelfPair() {
-    if (!selectedAccount1 || !selectedAccount2) {
-      alert('Please select 2 different accounts')
-      return
-    }
-    if (selectedAccount1.username === selectedAccount2.username) {
-      alert('Please select 2 different usernames')
-      return
-    }
+    if (!selectedAccount1 || !selectedAccount2) { alert('Please select 2 different accounts'); return }
+    if (selectedAccount1.username === selectedAccount2.username) { alert('Please select 2 different usernames'); return }
     setShowDisclaimer(true)
   }
 
   function handleCrossPair() {
-    if (!selectedAccount1 || !selectedOther) {
-      alert('Please select your account and another user\'s account')
-      return
-    }
+    if (!selectedAccount1 || !selectedOther) { alert('Please select your account and another user\'s account'); return }
     setShowDisclaimer(true)
   }
 
@@ -215,7 +198,6 @@ export default function PairPage() {
     let onchainTokenId: string | undefined
     let onchainTxHash: string | undefined
 
-    // Step 1: Call smart contract to mint onchain
     try {
       setMintStatus('Opening wallet to mint NFT...')
       if (!window.ethereum) throw new Error('No wallet found')
@@ -229,7 +211,6 @@ export default function PairPage() {
       const receipt = await tx.wait()
       onchainTxHash = receipt.hash
 
-      // Parse tokenId from UsernamePaired event
       const iface = contract.interface
       for (const log of receipt.logs) {
         try {
@@ -255,7 +236,6 @@ export default function PairPage() {
       return
     }
 
-    // Step 2: Save to DB with tokenId
     try {
       const res = await fetch('/api/pairs/mint', {
         method: 'POST',
@@ -283,7 +263,6 @@ export default function PairPage() {
       })
       setShowPostMintModal(true)
       fetchMyPairs()
-
       setSelectedAccount1(null)
       setSelectedAccount2(null)
       setSelectedOther(null)
@@ -525,9 +504,7 @@ export default function PairPage() {
               {availableUsers.length === 0 ? (
                 <div className="rounded-xl border border-border bg-card p-8 text-center">
                   <Users className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground">
-                    No users currently open for pairing
-                  </p>
+                  <p className="text-sm text-muted-foreground">No users currently open for pairing</p>
                   <p className="text-xs text-muted-foreground mt-1">
                     Users need to enable "Open for Pairing" toggle on their Pair page
                   </p>
@@ -569,7 +546,7 @@ export default function PairPage() {
             </div>
           )}
 
-          {/* ✅ Show selected user from Explore even before showAvailable */}
+          {/* Show selected user from Explore even when list is hidden */}
           {selectedOther && !showAvailable && (
             <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary shrink-0">
@@ -619,9 +596,7 @@ export default function PairPage() {
               </div>
               <h3 className="text-lg font-bold text-foreground">Mint Successful! 🎉</h3>
               {mintResult.tokenId && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Onchain Token #{mintResult.tokenId}
-                </p>
+                <p className="text-xs text-muted-foreground mt-1">Onchain Token #{mintResult.tokenId}</p>
               )}
               <div className="mt-3 inline-block rounded-lg bg-primary/10 px-4 py-2">
                 <p className="text-base font-bold text-primary">{mintResult.pairedName}</p>
@@ -640,12 +615,9 @@ export default function PairPage() {
                 <TrendingUp className="h-8 w-8 text-primary" />
                 <div className="text-center">
                   <p className="text-sm font-bold text-foreground">Trade</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    List as trading asset at 0.7 USDC
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">List as trading asset at 0.7 USDC</p>
                 </div>
               </button>
-
               <button
                 onClick={handlePostMintWrite}
                 className="flex flex-col items-center gap-2 rounded-xl border-2 border-border bg-secondary/30 p-4 hover:border-primary/50 hover:bg-secondary/50 transition-all"
@@ -653,9 +625,7 @@ export default function PairPage() {
                 <BookOpen className="h-8 w-8 text-muted-foreground" />
                 <div className="text-center">
                   <p className="text-sm font-bold text-foreground">Write Story</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Publish the philosophy
-                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Publish the philosophy</p>
                 </div>
               </button>
             </div>
@@ -667,5 +637,18 @@ export default function PairPage() {
         </div>
       )}
     </div>
+  )
+}
+
+// ✅ Default export wraps inner component in Suspense — required for useSearchParams
+export default function PairPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    }>
+      <PairPageContent />
+    </Suspense>
   )
 }
