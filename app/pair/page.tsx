@@ -3,17 +3,16 @@
 /**
  * app/pair/page.tsx
  *
- * ONCHAIN UPGRADE:
- * - handleConfirmPair() now calls contract.mintPairedUsername() via ethers
- *   BEFORE saving to DB — gets real tokenId (uint256) from UsernamePaired event
- * - tokenId and txHash saved to DB alongside the pair record
- * - Falls back to DB-only if contract call fails (legacy behavior preserved)
- * - Contract: 0xD3F182486C011463446452Bc32d30B965921C521 (Base Mainnet)
+ * FIXES:
+ * - Added useSearchParams to read ?user= query param from Explore page
+ * - When ?user= is present, auto-triggers fetchAvailableUsers and pre-selects
+ *   the target user so Pair button from Explore works correctly
+ * - showAvailable auto-opens when ?user= param exists
  */
 
 import { useState, useEffect } from "react"
 import { useAccount } from "wagmi"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { WalletConnect } from "@/components/connect-wallet-button"
 import { BrowserProvider, Contract } from "ethers"
 import {
@@ -63,6 +62,7 @@ interface PairData {
 export default function PairPage() {
   const { isConnected, address } = useAccount()
   const router = useRouter()
+  const searchParams = useSearchParams() // ✅ read ?user= from Explore
 
   const [myAccounts, setMyAccounts] = useState<UserAccount[]>([])
   const [loadingAccounts, setLoadingAccounts] = useState(true)
@@ -88,9 +88,31 @@ export default function PairPage() {
     }
   }, [address])
 
+  // ✅ Auto-open available users section when coming from Explore (?user=)
+  useEffect(() => {
+    const userParam = searchParams.get('user')
+    if (userParam) {
+      setShowAvailable(true) // triggers fetchAvailableUsers via next useEffect
+    }
+  }, [searchParams])
+
+  // Fetch available users when section is opened
   useEffect(() => {
     if (showAvailable) fetchAvailableUsers()
   }, [showAvailable])
+
+  // ✅ Pre-select user from ?user= query param after availableUsers loads
+  useEffect(() => {
+    const userParam = searchParams.get('user')
+    if (!userParam || availableUsers.length === 0) return
+
+    const found = availableUsers.find(
+      u => u.address.toLowerCase() === userParam.toLowerCase()
+    )
+    if (found) {
+      setSelectedOther(found)
+    }
+  }, [searchParams, availableUsers])
 
   async function fetchMyAccounts() {
     try {
@@ -130,10 +152,13 @@ export default function PairPage() {
 
   async function fetchAvailableUsers() {
     try {
+      // ✅ Uses /api/users/available (plural) which has full user+story data
       const res = await fetch('/api/users/available')
       const data = await res.json()
       setAvailableUsers(
-        data.users?.filter((u: AvailableUser) => u.address !== address && u.openForPairing) || []
+        data.users?.filter((u: AvailableUser) =>
+          u.address !== address && u.openForPairing
+        ) || []
       )
     } catch (e) {
       console.error('Failed to fetch available users:', e)
@@ -158,13 +183,22 @@ export default function PairPage() {
   }
 
   function handleSelfPair() {
-    if (!selectedAccount1 || !selectedAccount2) { alert('Please select 2 different accounts'); return }
-    if (selectedAccount1.username === selectedAccount2.username) { alert('Please select 2 different usernames'); return }
+    if (!selectedAccount1 || !selectedAccount2) {
+      alert('Please select 2 different accounts')
+      return
+    }
+    if (selectedAccount1.username === selectedAccount2.username) {
+      alert('Please select 2 different usernames')
+      return
+    }
     setShowDisclaimer(true)
   }
 
   function handleCrossPair() {
-    if (!selectedAccount1 || !selectedOther) { alert('Please select your account and another user\'s account'); return }
+    if (!selectedAccount1 || !selectedOther) {
+      alert('Please select your account and another user\'s account')
+      return
+    }
     setShowDisclaimer(true)
   }
 
@@ -181,10 +215,9 @@ export default function PairPage() {
     let onchainTokenId: string | undefined
     let onchainTxHash: string | undefined
 
-    // ✅ Step 1: Call smart contract to mint onchain
+    // Step 1: Call smart contract to mint onchain
     try {
       setMintStatus('Opening wallet to mint NFT...')
-
       if (!window.ethereum) throw new Error('No wallet found')
 
       const provider = new BrowserProvider(window.ethereum as any)
@@ -193,7 +226,6 @@ export default function PairPage() {
 
       const tx = await contract.mintPairedUsername(u1, p1, u2, p2)
       setMintStatus('Waiting for onchain confirmation...')
-
       const receipt = await tx.wait()
       onchainTxHash = receipt.hash
 
@@ -211,7 +243,6 @@ export default function PairPage() {
 
       setMintStatus('Minted onchain ✅ Saving to database...')
     } catch (contractError: any) {
-      // User rejected or contract error — do not proceed
       console.error('Contract mint failed:', contractError)
       const msg = contractError.code === 'ACTION_REJECTED'
         ? 'Transaction rejected by user'
@@ -224,7 +255,7 @@ export default function PairPage() {
       return
     }
 
-    // ✅ Step 2: Save to DB with tokenId
+    // Step 2: Save to DB with tokenId
     try {
       const res = await fetch('/api/pairs/mint', {
         method: 'POST',
@@ -310,14 +341,20 @@ export default function PairPage() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold text-foreground">Open for Pairing with Others</p>
-            <p className="text-xs text-muted-foreground mt-0.5">Allow other users to pair with your username</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Allow other users to pair with your username
+            </p>
           </div>
           <button
             onClick={togglePairingStatus}
             disabled={loadingToggle}
-            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${openForPairing ? 'bg-primary' : 'bg-border'}`}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              openForPairing ? 'bg-primary' : 'bg-border'
+            }`}
           >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${openForPairing ? 'translate-x-6' : 'translate-x-1'}`} />
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              openForPairing ? 'translate-x-6' : 'translate-x-1'
+            }`} />
           </button>
         </div>
       </div>
@@ -366,8 +403,7 @@ export default function PairPage() {
                   onClick={() => router.push(`/pair/${pair.id}/trade`)}
                   className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 shrink-0"
                 >
-                  Trade
-                  <ArrowRight className="h-3.5 w-3.5" />
+                  Trade <ArrowRight className="h-3.5 w-3.5" />
                 </button>
               </div>
             ))}
@@ -386,7 +422,7 @@ export default function PairPage() {
           <div className="rounded-xl border border-border bg-card p-6 text-center">
             <Shield className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
             <p className="text-sm text-muted-foreground mb-4">
-              You haven't published any stories yet. Publish your first username to start pairing.
+              You haven't published any stories yet.
             </p>
             <button
               onClick={() => router.push('/write')}
@@ -417,7 +453,8 @@ export default function PairPage() {
                   }
                 }}
                 className={`flex items-center gap-3 rounded-lg border p-3 text-left transition-all ${
-                  selectedAccount1?.username === account.username || selectedAccount2?.username === account.username
+                  selectedAccount1?.username === account.username ||
+                  selectedAccount2?.username === account.username
                     ? 'border-primary bg-primary/10'
                     : 'border-border bg-card hover:border-primary/40'
                 }`}
@@ -431,12 +468,15 @@ export default function PairPage() {
                   <p className="text-sm font-semibold text-foreground">@{account.username}</p>
                   <p className="text-xs text-muted-foreground">{account.platform}</p>
                 </div>
-                {(selectedAccount1?.username === account.username || selectedAccount2?.username === account.username) && (
+                {(selectedAccount1?.username === account.username ||
+                  selectedAccount2?.username === account.username) && (
                   <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded">
                     {selectedAccount1?.username === account.username ? '#1' : '#2'}
                   </span>
                 )}
-                {account.verified && <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />}
+                {account.verified && (
+                  <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+                )}
               </button>
             ))}
           </div>
@@ -457,7 +497,7 @@ export default function PairPage() {
         )}
       </div>
 
-      {/* Pair with Others */}
+      {/* Pair with Other Users */}
       {myAccounts.length > 0 && (
         <div className="mt-8">
           <div className="flex items-center justify-between mb-3">
@@ -475,7 +515,7 @@ export default function PairPage() {
               <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
               <div className="text-sm text-amber-900 dark:text-amber-200">
                 <p className="font-semibold mb-1">Important Notice</p>
-                <p>Contact them via DM or private chat first. Both users must agree. You are responsible for obtaining consent.</p>
+                <p>Contact them via DM first. Both users must agree. You are responsible for obtaining consent.</p>
               </div>
             </div>
           </div>
@@ -483,7 +523,15 @@ export default function PairPage() {
           {showAvailable && (
             <div className="space-y-3 mb-4">
               {availableUsers.length === 0 ? (
-                <p className="text-center text-sm text-muted-foreground py-6">No users currently open for pairing</p>
+                <div className="rounded-xl border border-border bg-card p-8 text-center">
+                  <Users className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    No users currently open for pairing
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Users need to enable "Open for Pairing" toggle on their Pair page
+                  </p>
+                </div>
               ) : (
                 availableUsers.map((user, idx) => (
                   <button
@@ -509,10 +557,29 @@ export default function PairPage() {
                       <p className="text-sm font-semibold text-foreground">@{user.username}</p>
                       <p className="text-xs text-muted-foreground">{user.platform}</p>
                     </div>
-                    <span className="text-xs font-medium text-green-600 bg-green-500/10 px-2 py-1 rounded">Open</span>
+                    {selectedOther?.username === user.username && (
+                      <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
+                    )}
+                    <span className="text-xs font-medium text-green-600 bg-green-500/10 px-2 py-1 rounded">
+                      Open
+                    </span>
                   </button>
                 ))
               )}
+            </div>
+          )}
+
+          {/* ✅ Show selected user from Explore even before showAvailable */}
+          {selectedOther && !showAvailable && (
+            <div className="mb-4 rounded-lg border border-primary/30 bg-primary/5 p-3 flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-secondary shrink-0">
+                <Users className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-foreground">@{selectedOther.username}</p>
+                <p className="text-xs text-muted-foreground">{selectedOther.platform} • Selected from Explore</p>
+              </div>
+              <CheckCircle2 className="h-4 w-4 text-primary shrink-0" />
             </div>
           )}
 
@@ -522,7 +589,11 @@ export default function PairPage() {
               disabled={!selectedAccount1 || !selectedOther || isPairing}
               className="w-full rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-              {isPairing ? mintStatus : `Pair: @${selectedAccount1?.username || '?'} × @${selectedOther.username}`}
+              {isPairing
+                ? mintStatus
+                : selectedAccount1
+                ? `Pair: @${selectedAccount1.username} × @${selectedOther.username}`
+                : `Select your account to pair with @${selectedOther.username}`}
             </button>
           )}
         </div>
@@ -569,7 +640,9 @@ export default function PairPage() {
                 <TrendingUp className="h-8 w-8 text-primary" />
                 <div className="text-center">
                   <p className="text-sm font-bold text-foreground">Trade</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">List as trading asset at 0.7 USDC</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    List as trading asset at 0.7 USDC
+                  </p>
                 </div>
               </button>
 
@@ -580,7 +653,9 @@ export default function PairPage() {
                 <BookOpen className="h-8 w-8 text-muted-foreground" />
                 <div className="text-center">
                   <p className="text-sm font-bold text-foreground">Write Story</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Publish the philosophy</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Publish the philosophy
+                  </p>
                 </div>
               </button>
             </div>
