@@ -1,4 +1,8 @@
 // app/api/stories/[id]/route.ts
+//
+// GET single story by id — fixes 404 when clicking "Read" from Explore page.
+// app/story/[id]/page.tsx calls this endpoint to fetch story data.
+
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 

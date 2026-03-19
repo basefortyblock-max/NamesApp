@@ -3,9 +3,9 @@
 /**
  * app/pair/[id]/trade/page.tsx
  *
- * Trading page for a paired username NFT.
- * Fetches pair data from DB and renders TradingTerminal component.
- * This is the page that post-mint modal redirects to when user picks "Trade".
+ * CHANGES:
+ * - Pass creator field from pair data to TradingTerminal
+ *   so isOwner check works correctly via creator address
  */
 
 import { useState, useEffect } from "react"
@@ -96,6 +96,7 @@ export default function TradePage() {
         currentPrice={pair.currentPrice}
         pairId={pair.id}
         tokenId={pair.id}
+        creator={pair.creator} // ✅ pass creator so isOwner works
       />
     </div>
   )
