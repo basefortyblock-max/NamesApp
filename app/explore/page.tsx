@@ -131,23 +131,14 @@ export default function ExplorePage() {
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex items-center gap-2 shrink-0">
-                  <button
-                    onClick={() => router.push(`/story/${story.id}`)}
-                    className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:border-primary/40 transition-colors"
-                  >
-                    <BookOpen className="h-3.5 w-3.5" />
-                    Read
-                  </button>
-                  <button
-                    onClick={() => router.push(`/pair?user=${story.address}`)}
-                    className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors"
-                  >
-                    Pair
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                {/* ✅ Read button removed — only Pair action remains */}
+                <button
+                  onClick={() => router.push(`/pair?user=${story.address}`)}
+                  className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shrink-0"
+                >
+                  Pair
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
               </div>
             ))}
           </div>
