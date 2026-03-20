@@ -4,16 +4,17 @@
  * components/farcaster-ready.tsx
  *
  * CHANGES:
- * - After calling sdk.actions.ready(), check if running inside Farcaster frame
- * - If yes, auto-connect wallet using farcasterFrame connector via wagmi connect()
- * - If already connected, skip — no double-connect
- * - In browser (non-frame context), sdk.context returns null → no auto-connect
+ * - Updated to @farcaster/miniapp-wagmi-connector (replaces deprecated frame-wagmi-connector)
+ * - connector passed directly to connect() — no need to register in wagmi config
+ * - sdk.actions.ready() called first to dismiss splash screen
+ * - Auto-connects wallet only if inside Farcaster frame context and not yet connected
+ * - Safe in browser: sdk.context returns null outside frame, no auto-connect triggered
  */
 
 import { useEffect } from "react"
 import sdk from "@farcaster/frame-sdk"
 import { useConnect, useAccount } from "wagmi"
-import { farcasterFrame } from "@farcaster/frame-wagmi-connector"
+import { farcasterMiniApp } from "@farcaster/miniapp-wagmi-connector"
 
 export function FarcasterReady() {
   const { connect } = useConnect()
@@ -28,8 +29,8 @@ export function FarcasterReady() {
       const context = await sdk.context
 
       if (context?.user && !isConnected) {
-        // ✅ Auto-connect wallet when inside Farcaster and not yet connected
-        connect({ connector: farcasterFrame() })
+        // Auto-connect wallet when inside Farcaster — no wallet popup needed
+        connect({ connector: farcasterMiniApp() })
       }
     }
 
