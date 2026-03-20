@@ -9,6 +9,7 @@ import { AppHeader } from "@/components/app-header"
 import { BottomNav } from "@/components/bottom-nav"
 import { ErrorBoundary } from "@/components/error-boundary"
 import { FarcasterReady } from "@/components/farcaster-ready"
+import { FarcasterAutoConnect } from "@/components/farcaster-auto-connect"
 import "./globals.css"
 
 const _geist = Geist({ subsets: ["latin"] })
@@ -53,7 +54,6 @@ export const metadata: Metadata = {
 
   other: {
     "base:builder-code": "bc_rapdmhv2",
-    // ✅ Format Mini App embed baru — dikenali oleh Farcaster Embed Tool
     "fc:frame": JSON.stringify({
       version: "next",
       imageUrl: "https://names-app-seven.vercel.app/og-image.png",
@@ -86,12 +86,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="base:app_id" content="694f1d014d3a403912ed8179" />
       </head>
       <body className="font-sans antialiased">
-        {/* ✅ Dismiss Farcaster splash screen as soon as app mounts */}
+        {/* ✅ FarcasterReady: outside Providers — only calls sdk.actions.ready(), no wagmi hooks */}
         <FarcasterReady />
         <ErrorBoundary>
           <Providers>
             <WalletProvider>
               <StoriesProvider>
+                {/* ✅ FarcasterAutoConnect: inside Providers — needs WagmiProvider context */}
+                <FarcasterAutoConnect />
                 <AppHeader />
                 <main className="pb-20">{children}</main>
                 <BottomNav />
