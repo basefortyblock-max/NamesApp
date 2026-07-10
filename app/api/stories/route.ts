@@ -1,114 +1,126 @@
 // app/api/stories/route.ts
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+// GET: list stories (feed) — sort by tipsTotal desc by default
+// POST: publish a new philosophy (offchain, requires Prisma write)
 
-export async function POST(request: NextRequest) {
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
+
+export async function GET(request: NextRequest) {
   try {
-    // ✅ Added `address` to destructuring — wallet address of story creator
-    const { userId, username, platform, story, verified, address } = await request.json()
+    const { searchParams } = new URL(request.url)
+    const sort = searchParams.get("sort") || "tips"
+    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100)
+    const offset = parseInt(searchParams.get("offset") || "0")
+    const platform = searchParams.get("platform")
 
-    console.log('📝 Creating story:', { userId, username, platform, storyLength: story?.length })
+    const orderBy =
+      sort === "recent"
+        ? { createdAt: "desc" as const }
+        : { tipsTotal: "desc" as const }
 
-    if (!userId || !username || !platform || !story) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
-    }
-
-    let user = await prisma.user.findUnique({ where: { address: userId } })
-    if (!user) {
-      console.log('👤 Creating user:', userId)
-      user = await prisma.user.create({ data: { address: userId } })
-    }
-
-    const wordCount = story.trim().split(/\s+/).length
-    if (wordCount > 490) {
-      return NextResponse.json({ error: `Too long: ${wordCount}/490 words` }, { status: 400 })
-    }
-
-    const existingStory = await prisma.story.findFirst({
-      where: {
-        userId: user.id,
-        username,
+    const stories = await prisma.story.findMany({
+      where: platform ? { platform } : undefined,
+      orderBy,
+      take: limit,
+      skip: offset,
+      include: {
+        user: { select: { address: true, basename: true } },
       },
     })
 
-    if (existingStory) {
-      return NextResponse.json(
-        { error: 'You already published a story for this username' },
-        { status: 400 }
-      )
-    }
+    const out = stories.map((s: (typeof stories)[number]) => ({
+      id: s.id,
+      username: s.username,
+      platform: s.platform,
+      philosophy: s.philosophy,
+      tipsCount: s.tipsCount,
+      tipsTotal: s.tipsTotal,
+      lastTipAt: s.lastTipAt,
+      createdAt: s.createdAt,
+      address: s.address || s.user?.address || "",
+    }))
 
-    const newStory = await prisma.story.create({
-      data: {
-        userId: user.id,
-        username,
-        platform,
-        story,
-        verified: verified || false,
-        price: 0.7,
-        // ✅ Save wallet address so USDC transfer knows the recipient
-        address: address || userId,
-      },
+    return NextResponse.json({
+      success: true,
+      count: out.length,
+      stories: out,
     })
-
-    console.log('✅ Story created:', newStory.id)
-    return NextResponse.json({ success: true, story: newStory }, { status: 201 })
-  } catch (error: any) {
-    console.error('❌ Story error:', error)
+  } catch (e) {
+    console.error("feed error:", e)
     return NextResponse.json(
-      {
-        error: 'Failed to publish',
-        details: error.message,
-      },
+      { error: "Failed to fetch stories" },
       { status: 500 }
     )
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
-    console.log('📚 Fetching all stories...')
+    const { address, username, platform, philosophy } = await request.json()
 
-    const storiesRaw = await prisma.story.findMany({
-      orderBy: { createdAt: 'desc' },
-      take: 50,
-      include: {
-        user: {
-          select: { address: true },
-        },
+    if (!address || !username || !platform || !philosophy) {
+      return NextResponse.json(
+        { error: "Missing required fields: address, username, platform, philosophy" },
+        { status: 400 }
+      )
+    }
+
+    const wordCount = philosophy.trim().split(/\s+/).filter(Boolean).length
+    if (wordCount === 0 || wordCount > 490) {
+      return NextResponse.json(
+        { error: `Philosophy must be 1-490 words (got ${wordCount})` },
+        { status: 400 }
+      )
+    }
+
+    // Username sanity — strip @, lowercase, alphanum+_- only
+    const clean = username.replace(/^@/, "").replace(/[^a-zA-Z0-9_-]/g, "")
+    if (clean.length === 0 || clean.length > 32) {
+      return NextResponse.json(
+        { error: "Username must be 1-32 chars, alphanumeric/_/-" },
+        { status: 400 }
+      )
+    }
+
+    // Upsert user
+    const user = await prisma.user.upsert({
+      where: { address },
+      update: {},
+      create: { address },
+    })
+
+    // Idempotency: same (username, platform) keyed
+    const existing = await prisma.story.findUnique({
+      where: { username_platform: { username: clean, platform } },
+    })
+    if (existing) {
+      return NextResponse.json(
+        { error: `Story already published for @${clean} on ${platform}` },
+        { status: 409 }
+      )
+    }
+
+    const story = await prisma.story.create({
+      data: {
+        userId: user.id,
+        username: clean,
+        platform,
+        philosophy: philosophy.trim(),
+        address,
       },
     })
 
-    const stories = storiesRaw.map((s) => ({
-      id: s.id,
-      userId: s.userId,
-      username: s.username,
-      platform: s.platform,
-      story: s.story,
-      price: s.price,
-      likes: s.likes,
-      shares: s.shares,
-      verified: s.verified,
-      createdAt: s.createdAt,
-      // ✅ Renamed from creatorAddress → address to match story-card.tsx expectation
-      // Falls back to user.address if Story.address is empty (data lama)
-      address: s.address || s.user?.address || '',
-    }))
-
-    console.log(`✅ Found ${stories.length} stories`)
-
-    return NextResponse.json({
-      success: true,
-      count: stories.length,
-      stories,
-    })
-  } catch (error: any) {
-    console.error('❌ Get stories error:', error)
+    return NextResponse.json({ success: true, story }, { status: 201 })
+  } catch (e: any) {
+    if (e?.code === "P2002") {
+      return NextResponse.json(
+        { error: "Story already exists" },
+        { status: 409 }
+      )
+    }
+    console.error("publish error:", e)
     return NextResponse.json(
-      {
-        error: 'Failed to fetch stories',
-        details: error.message,
-      },
+      { error: "Failed to publish" },
       { status: 500 }
     )
   }

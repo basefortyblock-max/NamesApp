@@ -1,345 +1,233 @@
 "use client"
 
-import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+/**
+ * Write flow — 3 steps: username → philosophy → confirm.
+ * Replaces old /write page (Phase 1 cleanup).
+ *
+ * Removed:
+ * - multi-step signature verification loops
+ * - 490-word limit unchanged BUT now 1-490 (block empty)
+ * - Sign-message step simplified (wallet signature is fast-pace, not blocking)
+ */
+
+import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { useAccount, useSignMessage } from "wagmi"
 import { WalletConnect } from "@/components/connect-wallet-button"
-import { Wallet, CheckCircle2, AlertCircle, Loader2, Shield, Sparkles } from "lucide-react"
+import { PenSquare, Shield, AlertCircle, Loader2 } from "lucide-react"
+import { Platform, PLATFORMS } from "@/lib/constants"
 
 export default function WritePage() {
+  const router = useRouter()
   const { isConnected, address } = useAccount()
   const { signMessageAsync } = useSignMessage()
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  
+
   const [username, setUsername] = useState("")
-  const [story, setStory] = useState("")
-  const [step, setStep] = useState<"input" | "verify" | "write" | "confirm">("input")
-  const [isVerifying, setIsVerifying] = useState(false)
-  const [isVerified, setIsVerified] = useState(false)
-  const [verificationError, setVerificationError] = useState("")
-  const [wordCount, setWordCount] = useState(0)
-  const [isPublishing, setIsPublishing] = useState(false)
-
-  // Check if this is from paired username
-  useEffect(() => {
-    const pairedParam = searchParams?.get('paired')
-    if (pairedParam) {
-      setUsername(pairedParam)
-    }
-  }, [searchParams])
-
-  // Update word count
-  useEffect(() => {
-    const words = story.trim().split(/\s+/).filter(w => w.length > 0)
-    setWordCount(words.length)
-  }, [story])
+  const [platform, setPlatform] = useState<Platform>("base")
+  const [philosophy, setPhilosophy] = useState("")
+  const [step, setStep] = useState<"input" | "confirm" | "publishing">("input")
+  const [error, setError] = useState("")
+  const [verifying, setVerifying] = useState(false)
 
   if (!isConnected) {
     return (
       <div className="mx-auto max-w-2xl px-4 py-16 text-center">
-        <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10">
-          <Wallet className="h-7 w-7 text-primary" />
-        </div>
-        <h1 className="text-xl font-bold text-foreground">Connect Your Wallet</h1>
-        <p className="mt-2 text-base text-muted-foreground">
-          You need to connect your wallet to share your name philosophy.
+        <PenSquare className="mx-auto h-10 w-10 text-primary mb-4" />
+        <h1 className="text-2xl font-bold mb-2">Publish Your Story</h1>
+        <p className="text-base text-muted-foreground mb-6">
+          Connect wallet to share the story behind your username.
         </p>
-        <div className="mt-5">
+        <div className="inline-flex">
           <WalletConnect />
         </div>
       </div>
     )
   }
 
-  const handleVerify = async () => {
-    if (!username.trim()) return
-    
-    setIsVerifying(true)
-    setVerificationError("")
-    setStep("verify")
-    
+  const wordCount = philosophy.trim().split(/\s+/).filter(Boolean).length
+  const cleanUsername = username.replace(/^@/, "").replace(/[^a-zA-Z0-9_-]/g, "")
+  const usernameValid = cleanUsername.length >= 1 && cleanUsername.length <= 32
+  const philosophyValid = wordCount >= 1 && wordCount <= 490
+
+  async function handleVerify() {
+    if (!usernameValid) return setError("Username 1-32 chars (letters, numbers, _-)")
+    if (!philosophyValid) return setError(`Philosophy must be 1-490 words (got ${wordCount})`)
+    setError("")
+
+    // Wallet signature as soft verification (proves ownership of address)
     try {
-      // Simple wallet signature verification
-      const message = `Verify username ownership: ${username}\nWallet: ${address}\nTimestamp: ${Date.now()}`
+      setVerifying(true)
+      const message = `Publish story for @${cleanUsername} on Names × x402 from ${address}`
       await signMessageAsync({ message })
-      
-      setIsVerified(true)
-      setTimeout(() => setStep("write"), 800)
-      
-    } catch (error: any) {
-      setVerificationError(error.message || 'Verification failed')
-      setIsVerifying(false)
-      setStep("input")
+      setStep("confirm")
+    } catch (e: any) {
+      if (e?.code === "ACTION_REJECTED" || e?.message?.includes("rejected")) {
+        setError("Signature cancelled")
+      } else {
+        setError(e?.message || "Signature failed")
+      }
+    } finally {
+      setVerifying(false)
     }
   }
 
-  const handlePublish = () => {
-    if (!story.trim() || !username.trim()) return
-    
-    // Check word limit (490 words - 7x7x10 philosophy)
-    if (wordCount > 490) {
-      alert('Story exceeds 490 words limit')
-      return
-    }
-    
-    setStep("confirm")
-  }
-
-  const handleConfirmPublish = async () => {
-    setIsPublishing(true)
-    
+  async function handlePublish() {
+    setStep("publishing")
+    setError("")
     try {
-      const response = await fetch('/api/stories', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/stories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: address,
-          username: username.trim(),
-          platform: 'Base', // All usernames are on Base now
-          story: story.trim(),
-          verified: isVerified,
+          address,
+          username: cleanUsername,
+          platform,
+          philosophy: philosophy.trim(),
         }),
       })
-      
-      const data = await response.json()
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to publish')
-      }
-      
-      alert('✅ Story published! Starting price: 0.7 USDC')
-      window.location.href = '/'
-      
-    } catch (error: any) {
-      console.error('❌ Error:', error)
-      alert(`❌ ${error.message}`)
-    } finally {
-      setIsPublishing(false)
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || "Publish failed")
+      router.push(`/u/${cleanUsername}`)
+      router.refresh()
+    } catch (e: any) {
+      setError(e.message)
+      setStep("confirm")
     }
+  }
+
+  if (step === "confirm") {
+    return (
+      <div className="mx-auto max-w-2xl px-4 py-6">
+        <h1 className="text-xl font-bold mb-1">Confirm</h1>
+        <p className="text-sm text-muted-foreground mb-4">
+          Review before publishing.
+        </p>
+        <article className="rounded-xl border border-border bg-card p-5">
+          <p className="text-base font-bold mb-1">@{cleanUsername}</p>
+          <span className="inline-block rounded-full bg-secondary px-2 py-0.5 text-xs mr-2">
+            {platform}
+          </span>
+          <p className="mt-3 text-sm whitespace-pre-wrap">{philosophy}</p>
+        </article>
+
+        {error && (
+          <div className="mt-3 flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            {error}
+          </div>
+        )}
+
+        <div className="mt-4 flex gap-3">
+          <button
+            onClick={() => setStep("input")}
+            className="flex-1 rounded-lg border border-border py-3 text-sm font-semibold hover:bg-secondary"
+          >
+            Back
+          </button>
+          <button
+            onClick={handlePublish}
+            className="flex-1 rounded-lg bg-primary py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+          >
+            Publish
+          </button>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6">
-      <h1 className="text-xl font-bold text-foreground">Publish Your Username Story</h1>
-      <p className="mt-1 text-base text-muted-foreground">
-        Share the charismatic philosophy behind your username
+      <h1 className="text-xl font-bold">Publish Your Story</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Share what makes your username yours.
       </p>
 
-      {/* Step indicators */}
-      <div className="mt-6 flex gap-1">
-        {["Username", "Verify", "Story", "Publish"].map((label, i) => {
-          const stepIdx =
-            step === "input" ? 0 : step === "verify" ? 1 : step === "write" ? 2 : 3
-          return (
-            <div key={label} className="flex flex-1 flex-col gap-1">
-              <div
-                className={`h-1 rounded-full transition-colors ${
-                  i <= stepIdx ? "bg-primary" : "bg-border"
-                }`}
-              />
-              <span
-                className={`text-[10px] font-medium ${
-                  i <= stepIdx ? "text-primary" : "text-muted-foreground"
+      <div className="mt-6 space-y-5">
+        <div>
+          <label className="block text-sm font-medium mb-2">Username</label>
+          <input
+            value={username}
+            onChange={(e) => setUsername(e.target.value.replace(/^@/, ""))}
+            placeholder="e.g. satoshiBuilder"
+            className="w-full rounded-lg border border-input bg-card px-3 py-2.5 text-base outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            1-32 chars, letters/numbers/_/- (no @)
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium mb-2">Platform</label>
+          <div className="grid grid-cols-4 gap-2">
+            {PLATFORMS.slice(0, 8).map((p) => (
+              <button
+                key={p.value}
+                onClick={() => setPlatform(p.value)}
+                className={`rounded-lg py-2 text-xs font-medium border ${
+                  platform === p.value
+                    ? "bg-primary/10 border-primary text-primary"
+                    : "bg-card border-border text-muted-foreground"
                 }`}
               >
-                {label}
-              </span>
-            </div>
-          )
-        })}
-      </div>
-
-      {/* Step 1: Username input */}
-      {step === "input" && (
-        <div className="mt-6 flex flex-col gap-4">
-          <div className="rounded-xl border-2 border-primary/30 bg-primary/5 p-4">
-            <div className="flex items-start gap-3">
-              <Sparkles className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-              <div className="text-sm">
-                <p className="font-semibold text-foreground mb-1">One wallet, unlimited usernames</p>
-                <p className="text-muted-foreground">
-                  You can publish multiple username stories from a single wallet. Each username tells a unique story.
-                </p>
-              </div>
-            </div>
+                {p.icon} {p.label}
+              </button>
+            ))}
           </div>
-
-          <div>
-            <label htmlFor="username" className="mb-1.5 block text-base font-medium text-foreground">
-              Your Username
-            </label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value.replace('@', '').trim())}
-              placeholder="e.g. SatoshiDreamer (without @)"
-              className="w-full rounded-lg border border-input bg-card px-3 py-2.5 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-            <p className="mt-1 text-xs text-muted-foreground">
-              Type username without @ symbol
-            </p>
-          </div>
-
-          {verificationError && (
-            <div className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2.5 text-sm text-destructive">
-              <AlertCircle className="h-4 w-4" />
-              {verificationError}
-            </div>
-          )}
-
-          <button
-            onClick={handleVerify}
-            disabled={!username.trim() || isVerifying}
-            className="mt-2 w-full rounded-lg bg-primary py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
-          >
-            {isVerifying ? (
-              <span className="flex items-center justify-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Verifying...
-              </span>
-            ) : (
-              'Continue'
-            )}
-          </button>
         </div>
-      )}
 
-      {/* Step 2: Verifying */}
-      {step === "verify" && (
-        <div className="mt-10 flex flex-col items-center gap-4 text-center">
-          {!isVerified ? (
-            <>
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-              <p className="text-base text-muted-foreground">
-                Verifying <span className="font-semibold text-foreground">@{username}</span>
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Please sign the message in your wallet
-              </p>
-            </>
+        <div>
+          <label className="block text-sm font-medium mb-2">
+            Philosophy
+          </label>
+          <textarea
+            value={philosophy}
+            onChange={(e) => setPhilosophy(e.target.value)}
+            placeholder="Why does this username mean what it means to you?"
+            rows={8}
+            className="w-full resize-none rounded-lg border border-input bg-card px-3 py-3 text-sm leading-relaxed outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+          />
+          <div className="mt-1 flex justify-between items-center text-xs">
+            <span className="text-muted-foreground">Max 490 words</span>
+            <span
+              className={`font-medium ${
+                wordCount > 490 ? "text-destructive" : "text-muted-foreground"
+              }`}
+            >
+              {wordCount}/490
+            </span>
+          </div>
+        </div>
+
+        {error && (
+          <div className="flex items-center gap-2 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <AlertCircle className="h-4 w-4" />
+            {error}
+          </div>
+        )}
+
+        <div className="rounded-lg border-2 border-primary/30 bg-primary/5 px-3 py-2.5 flex gap-2">
+          <Shield className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+          <p className="text-xs leading-relaxed">
+            We'll ask your wallet to sign a verification message. This proves
+            ownership without needing OAuth or accounts.
+          </p>
+        </div>
+
+        <button
+          onClick={handleVerify}
+          disabled={verifying || !usernameValid || !philosophyValid}
+          className="w-full rounded-lg bg-primary py-3 text-base font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
+        >
+          {verifying ? (
+            <span className="inline-flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Sign message...
+            </span>
           ) : (
-            <>
-              <CheckCircle2 className="h-10 w-10 text-primary" />
-              <p className="text-base text-foreground">Verified successfully!</p>
-            </>
+            "Continue"
           )}
-        </div>
-      )}
-
-      {/* Step 3: Story editor */}
-      {step === "write" && (
-        <div className="mt-6 flex flex-col gap-4">
-          <div className="flex items-center gap-3 rounded-lg bg-secondary/70 px-3 py-2.5">
-            <Shield className="h-4 w-4 shrink-0 text-primary" />
-            <div>
-              <p className="text-base font-medium text-foreground">@{username}</p>
-              <p className="text-sm text-muted-foreground">
-                Verified by wallet signature
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <label htmlFor="story" className="mb-1.5 block text-base font-medium text-foreground">
-              Your Username Philosophy
-            </label>
-            <textarea
-              id="story"
-              value={story}
-              onChange={(e) => setStory(e.target.value)}
-              placeholder="Why did you choose this username? Does it carry historical significance, bring good fortune, represent health, or embody a charismatic philosophy? Share the meaningful story that makes this name uniquely yours."
-              rows={10}
-              className="w-full resize-none rounded-lg border border-input bg-card px-3 py-2.5 text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary"
-            />
-            <div className="mt-1 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">Maximum 490 words</p>
-              <p className={`text-sm font-medium ${wordCount > 490 ? 'text-destructive' : 'text-muted-foreground'}`}>
-                {wordCount}/490 words
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-start gap-2 rounded-lg border-2 border-primary/30 bg-primary/5 px-3 py-2.5">
-            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-            <div className="text-sm leading-relaxed">
-              <p className="font-semibold text-foreground mb-1">
-                Your story is high-value content
-              </p>
-              <p className="text-muted-foreground">
-                Base price starts at <span className="font-semibold text-foreground">0.7 USDC</span>. 
-                When readers appreciate your philosophy and send value, you earn directly. 
-                Share wisdom, inspire others, and get rewarded.
-              </p>
-            </div>
-          </div>
-
-          <button
-            onClick={handlePublish}
-            disabled={!story.trim() || wordCount > 490}
-            className="w-full rounded-lg bg-primary py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
-          >
-            Continue to Publish
-          </button>
-        </div>
-      )}
-
-      {/* Step 4: Confirm */}
-      {step === "confirm" && (
-        <div className="mt-6 flex flex-col gap-4">
-          <div className="rounded-xl border border-border bg-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/15">
-                <span className="text-base font-bold text-primary">
-                  {username.charAt(0).toUpperCase()}
-                </span>
-              </div>
-              <div>
-                <p className="text-base font-semibold text-foreground">@{username}</p>
-                <p className="text-sm text-muted-foreground">Verified by wallet</p>
-              </div>
-            </div>
-            <p className="mt-3 text-base leading-relaxed text-foreground">{story}</p>
-            <div className="mt-3 flex items-center gap-1.5 text-sm text-primary">
-              <span className="font-semibold">Starting Price: 0.7 USDC</span>
-            </div>
-          </div>
-
-          <div className="rounded-lg bg-amber-500/10 border border-amber-500/20 p-3">
-            <p className="text-sm text-amber-900 dark:text-amber-200 font-medium">
-              ⚠️ This action cannot be undone
-            </p>
-            <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-              Once published, your story will be permanently saved on-chain
-            </p>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={() => setStep("write")}
-              disabled={isPublishing}
-              className="flex-1 rounded-lg border border-border bg-card py-3 text-base font-semibold text-foreground transition-colors hover:bg-secondary disabled:opacity-40"
-            >
-              Edit
-            </button>
-            <button
-              onClick={handleConfirmPublish}
-              disabled={isPublishing}
-              className="flex-1 rounded-lg bg-primary py-3 text-base font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
-            >
-              {isPublishing ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Publishing...
-                </span>
-              ) : (
-                'Confirm & Publish'
-              )}
-            </button>
-          </div>
-        </div>
-      )}
+        </button>
+      </div>
     </div>
   )
 }

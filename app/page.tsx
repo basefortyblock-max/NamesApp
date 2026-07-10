@@ -1,22 +1,20 @@
 "use client"
 
 /**
- * app/page.tsx
+ * Feed view — top stories by tipsTotal.
+ * Simplified version of original app/page.tsx (Phase 3 cleanup).
  *
- * FIXES:
- * - Story interface: added `address` field for USDC recipient
- * - handleSendValue() removed — replaced with OnchainKit <Transaction>
- *   so real onchain USDC transfer happens with gasless sponsorship
- * - handleTransactionSuccess() saves real txHash to DB after onchain confirmation
- * - DB save is non-blocking — error never shows alert popup to user
- * - Removed sendingValue state — OnchainKit manages loading state internally
+ * REPLACES:
+ * - "Send Appreciation" paymaster flow → plain USDC Transfer (user pays gas, ~$0.001 ETH)
+ * - onchainkit Transaction capabilities.paymasterService removed
+ * - 5% price-increment model removed → just tip counter + tipsTotal
  */
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAccount } from "wagmi"
 import { WalletConnect } from "@/components/connect-wallet-button"
-import { Sparkles, DollarSign, X } from "lucide-react"
+import { Sparkles, Heart } from "lucide-react"
 import {
   Transaction,
   TransactionButton,
@@ -26,30 +24,30 @@ import {
 } from "@coinbase/onchainkit/transaction"
 import type { LifecycleStatus } from "@coinbase/onchainkit/transaction"
 import { base } from "viem/chains"
-import { buildUSDCTransferData, USDC_ADDRESS } from "@/lib/paymaster"
+import { encodeFunctionData, erc20Abi } from "viem"
 
 interface Story {
   id: string
   username: string
   platform: string
-  story: string
-  price: number
-  verified: boolean
+  philosophy: string
+  tipsCount: number
+  tipsTotal: number
+  lastTipAt: string | null
   createdAt: string
-  userId: string
-  address: string // ✅ wallet address penerima USDC
+  address: string
 }
 
-export default function HomePage() {
+const USDC_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913" as const
+const SUGGESTED_TIPS = ["0.10", "0.50", "1.00", "5.00"]
+
+export default function FeedPage() {
   const { address } = useAccount()
   const router = useRouter()
   const [stories, setStories] = useState<Story[]>([])
   const [loading, setLoading] = useState(true)
-
-  // Send Value Modal
-  const [showValueModal, setShowValueModal] = useState(false)
-  const [selectedStory, setSelectedStory] = useState<Story | null>(null)
-  const [valueAmount, setValueAmount] = useState("0.7")
+  const [tippingStory, setTippingStory] = useState<Story | null>(null)
+  const [tipAmount, setTipAmount] = useState("0.10")
 
   useEffect(() => {
     fetchStories()
@@ -57,91 +55,69 @@ export default function HomePage() {
 
   async function fetchStories() {
     try {
-      const response = await fetch('/api/stories')
-      const data = await response.json()
+      const res = await fetch("/api/stories?sort=tips")
+      const data = await res.json()
       setStories(data.stories || [])
-    } catch (error) {
-      console.error('Failed to fetch stories:', error)
+    } catch (e) {
+      console.error("fetch stories:", e)
     } finally {
       setLoading(false)
     }
   }
 
-  function openValueModal(story: Story) {
-    if (!address) {
-      alert('Please connect wallet to send appreciation')
-      return
-    }
-    setSelectedStory(story)
-    setValueAmount("0.7")
-    setShowValueModal(true)
+  function openTip(s: Story) {
+    if (!address) return alert("Connect wallet to tip")
+    setTippingStory(s)
+    setTipAmount("0.10")
   }
 
-  // ✅ Called by OnchainKit after tx confirmed onchain — save to DB non-blocking
-  const handleTransactionSuccess = async (status: LifecycleStatus) => {
-    if (status.statusName !== "success" || !selectedStory) return
-
+  async function handleTipSuccess(status: LifecycleStatus) {
+    if (status.statusName !== "success" || !tippingStory) return
     const data = status.statusData as any
     const txHash: string | null =
       data?.transactionReceipts?.[0]?.transactionHash ??
       data?.receipts?.[0]?.transactionHash ??
-      data?.receipt?.transactionHash ??
       data?.transactionHash ??
       null
+    const amount = parseFloat(tipAmount)
 
-    const amount = parseFloat(valueAmount)
-
-    // Update local price immediately
+    // Optimistic UI update
     setStories((prev) =>
       prev.map((s) =>
-        s.id === selectedStory.id
-          ? { ...s, price: s.price + amount * 0.05 }
+        s.id === tippingStory.id
+          ? {
+              ...s,
+              tipsCount: s.tipsCount + 1,
+              tipsTotal: s.tipsTotal + amount,
+              lastTipAt: new Date().toISOString(),
+            }
           : s
       )
     )
+    setTippingStory(null)
+    setTipAmount("0.10")
 
-    setShowValueModal(false)
-    setValueAmount("0.7")
-
-    // Save to DB in background — non-blocking, no alert on failure
-    fetch(`/api/stories/${selectedStory.id}/value`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: address,
-        to: selectedStory.address,
-        amount,
-        txHash,
-      }),
-    })
-      .then(async (res) => {
-        if (!res.ok) {
-          const err = await res.json().catch(() => ({}))
-          console.error('DB save failed (tx already confirmed onchain):', err)
-        }
-      })
-      .catch((err) =>
-        console.error('DB save network error (tx already confirmed):', err)
-      )
+    // DB write in background — non-blocking
+    fetch(`/api/stories/${tippingStory.id}/tip`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ from: address, amount, txHash }),
+    }).catch((err) =>
+      console.error("tip DB save failed (tx already confirmed):", err)
+    )
   }
 
-  // Build OnchainKit calls for selected story
-  const amount = parseFloat(valueAmount)
-  const isValidAmount = !isNaN(amount) && amount >= 0.7
-  const recipientAddress = selectedStory?.address as `0x${string}` | undefined
-
-  const calls =
-    isValidAmount && recipientAddress
-      ? [
-          {
-            to: USDC_ADDRESS,
-            data: buildUSDCTransferData(
-              recipientAddress,
-              BigInt(Math.floor(amount * 1e6))
-            ),
-          },
-        ]
-      : []
+  function buildTipCall(recipient: string, usdAmount: number) {
+    const wei = BigInt(Math.floor(usdAmount * 1e6))
+    return {
+      to: USDC_ADDRESS,
+      data: encodeFunctionData({
+        abi: erc20Abi,
+        functionName: "transfer",
+        args: [recipient as `0x${string}`, wei],
+      }),
+    }
+  }
 
   if (loading) {
     return (
@@ -151,212 +127,194 @@ export default function HomePage() {
     )
   }
 
+  const recipient = tippingStory?.address as `0x${string}` | undefined
+  const amt = parseFloat(tipAmount)
+  const isValid = !isNaN(amt) && amt >= 0.10 && recipient
+  const tipCalls = isValid ? [buildTipCall(recipient!, amt)] : []
+
   return (
-    <div className="mx-auto max-w-4xl px-4 py-8">
-      {/* Header */}
+    <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="mb-8 text-center">
         <h1 className="text-3xl font-bold text-foreground mb-2">
-          Username Philosophy
+          Username Philosophies
         </h1>
         <p className="text-base text-muted-foreground">
-          Discover the charismatic stories behind usernames
+          Tip the stories that resonate
         </p>
       </div>
 
-      {/* CTA if no wallet */}
       {!address && (
         <div className="mb-8 rounded-xl border-2 border-primary/30 bg-primary/5 p-6 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <Sparkles className="h-6 w-6 text-primary" />
-          </div>
-          <h2 className="text-lg font-bold text-foreground mb-2">
-            Share Your Story
-          </h2>
+          <Sparkles className="mx-auto h-8 w-8 text-primary mb-3" />
+          <h2 className="text-lg font-bold mb-2">Connect Wallet</h2>
           <p className="text-sm text-muted-foreground mb-4">
-            Connect your wallet to share the philosophy behind your username
+            Connect to publish your story or tip creators
           </p>
-          <div className="inline-flex"><WalletConnect /></div>
+          <div className="inline-flex">
+            <WalletConnect />
+          </div>
         </div>
       )}
 
-      {/* Stories Section */}
       <div className="mb-6 flex items-center justify-between">
-        <h2 className="text-xl font-bold text-foreground">
-          Latest Stories
+        <h2 className="text-xl font-bold">
+          Top Stories
           <span className="ml-2 text-base font-normal text-muted-foreground">
             ({stories.length})
           </span>
         </h2>
         {address && (
           <button
-            onClick={() => router.push('/write')}
+            onClick={() => router.push("/write")}
             className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
           >
-            Write Your Story
+            Publish Your Story
           </button>
         )}
       </div>
 
-      {/* Stories List */}
       {stories.length === 0 ? (
         <div className="rounded-xl border border-border bg-card p-12 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-secondary">
-            <Sparkles className="h-8 w-8 text-muted-foreground" />
-          </div>
-          <h3 className="text-lg font-bold text-foreground mb-2">No Stories Yet</h3>
-          <p className="text-sm text-muted-foreground mb-6">
-            Be the first to share your username philosophy!
+          <p className="text-lg font-bold mb-2">No Stories Yet</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Be the first to publish.
           </p>
-          {address ? (
+          {address && (
             <button
-              onClick={() => router.push('/write')}
-              className="inline-flex items-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
+              onClick={() => router.push("/write")}
+              className="rounded-full bg-primary px-6 py-3 text-sm font-semibold text-primary-foreground"
             >
-              <Sparkles className="h-4 w-4" />
-              Write Your Story
+              Publish Your Story
             </button>
-          ) : (
-            <div className="inline-flex"><WalletConnect /></div>
           )}
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {stories.map((story) => (
             <article
               key={story.id}
-              className="rounded-xl border border-border bg-card p-6 hover:border-primary/50 transition-colors"
+              onClick={() => router.push(`/u/${story.username}`)}
+              className="rounded-xl border border-border bg-card p-5 hover:border-primary/50 cursor-pointer transition-colors"
             >
-              {/* Story Header */}
-              <div className="flex items-center gap-3 mb-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                  <span className="text-lg font-bold text-primary">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 shrink-0">
+                  <span className="text-base font-bold text-primary">
                     {story.username.charAt(0).toUpperCase()}
                   </span>
                 </div>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="text-base font-bold text-foreground">
-                      @{story.username}
-                    </p>
-                    {story.verified && (
-                      <div className="flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-0.5">
-                        <span className="text-xs font-medium text-green-600 dark:text-green-400">
-                          Verified
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <div className="flex-1 min-w-0">
+                  <p className="text-base font-bold truncate">
+                    @{story.username}
+                  </p>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{story.platform}</span>
+                    <span>•</span>
                     <span>{new Date(story.createdAt).toLocaleDateString()}</span>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-primary">
-                    {story.price.toFixed(2)} USDC
+                <div className="text-right shrink-0">
+                  <p className="text-sm font-semibold text-primary flex items-center gap-1">
+                    <Heart className="h-3.5 w-3.5" />
+                    {story.tipsCount}
                   </p>
-                  <p className="text-xs text-muted-foreground">Base price</p>
+                  <p className="text-xs text-muted-foreground">
+                    ${story.tipsTotal.toFixed(2)}
+                  </p>
                 </div>
               </div>
 
-              {/* Story Content */}
-              <p className="text-base leading-relaxed text-foreground mb-4 whitespace-pre-wrap">
-                {story.story}
+              <p className="text-sm leading-relaxed text-foreground line-clamp-3 whitespace-pre-wrap mb-4">
+                {story.philosophy}
               </p>
 
-              {/* Send Appreciation Button */}
               {address && (
-                <div className="pt-4 border-t border-border">
-                  <button
-                    onClick={() => openValueModal(story)}
-                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground hover:bg-primary/90"
-                  >
-                    <DollarSign className="h-4 w-4" />
-                    Send Appreciation
-                  </button>
-                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    openTip(story)
+                  }}
+                  className="rounded-lg bg-primary/10 px-3 py-1.5 text-sm font-semibold text-primary hover:bg-primary/20"
+                >
+                  Tip Creator
+                </button>
               )}
             </article>
           ))}
         </div>
       )}
 
-      {/* Send Value Modal */}
-      {showValueModal && selectedStory && (
+      {tippingStory && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
           <div className="w-full max-w-md rounded-xl bg-card border-2 border-border p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-foreground">
-                Send Appreciation
+              <h3 className="text-lg font-bold">
+                Tip <span className="text-primary">@{tippingStory.username}</span>
               </h3>
-              <button
-                onClick={() => setShowValueModal(false)}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="h-5 w-5" />
+              <button onClick={() => setTippingStory(null)} className="text-muted-foreground">
+                ✕
               </button>
             </div>
 
-            <div className="mb-4 p-4 rounded-lg bg-secondary/50">
-              <p className="text-sm text-muted-foreground mb-1">To</p>
-              <p className="text-base font-semibold text-foreground">
-                @{selectedStory.username}
-              </p>
+            <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
+              {tippingStory.philosophy}
+            </p>
+
+            <label className="block text-sm font-medium mb-2">
+              Amount (USDC)
+            </label>
+            <input
+              type="number"
+              step="0.01"
+              min="0.10"
+              value={tipAmount}
+              onChange={(e) => setTipAmount(e.target.value)}
+              className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-base font-mono outline-none focus:border-primary"
+              placeholder="0.10"
+            />
+
+            <div className="mt-3 flex gap-2">
+              {SUGGESTED_TIPS.map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setTipAmount(s)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    tipAmount === s
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-secondary text-muted-foreground"
+                  }`}
+                >
+                  ${s}
+                </button>
+              ))}
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-muted-foreground mb-2">
-                Amount (USDC)
-              </label>
-              <input
-                type="number"
-                step="0.1"
-                min="0.7"
-                value={valueAmount}
-                onChange={(e) => setValueAmount(e.target.value)}
-                className="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-base font-mono text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
-                placeholder="0.7"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Minimum: 0.7 USDC • No maximum
-              </p>
-            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              Min $0.10 • Direct USDC transfer on Base • You pay a tiny gas fee
+            </p>
 
-            <div className="rounded-lg bg-green-500/10 border border-green-500/20 p-3 mb-4">
-               <p className="text-xs text-green-700 dark:text-green-300 font-medium">
-               ⚡ No gas fees — transaction sponsored by Paymaster
-               </p>
-               <p className="text-xs text-green-600/70 dark:text-green-400/60 mt-1">
-               💡 Use Coinbase Wallet for true gasless
-               </p>
-            </div>
-
-            {/* ✅ OnchainKit Transaction — real gasless USDC transfer */}
-            {isValidAmount && calls.length > 0 ? (
-              <Transaction
-                chainId={base.id}
-                calls={calls}
-                capabilities={{
-                  paymasterService: {
-                    url: "/api/paymaster/proxy",
-                  },
-                }}
-                onStatus={handleTransactionSuccess}
-              >
-                <TransactionButton
-                  text={`Send ${valueAmount} USDC`}
-                  className="w-full rounded-lg bg-primary py-3 text-base font-semibold text-primary-foreground hover:bg-primary/90"
-                />
-                <TransactionStatus>
-                  <TransactionStatusLabel />
-                  <TransactionStatusAction />
-                </TransactionStatus>
-              </Transaction>
+            {isValid ? (
+              <div className="mt-4">
+                <Transaction
+                  chainId={base.id}
+                  calls={tipCalls}
+                  onStatus={handleTipSuccess}
+                >
+                  <TransactionButton
+                    text={`Tip $${tipAmount} USDC`}
+                    className="w-full rounded-lg bg-primary py-3 text-base font-semibold text-primary-foreground hover:bg-primary/90"
+                  />
+                  <TransactionStatus>
+                    <TransactionStatusLabel />
+                    <TransactionStatusAction />
+                  </TransactionStatus>
+                </Transaction>
+              </div>
             ) : (
               <button
                 disabled
-                className="w-full rounded-lg bg-primary/50 py-3 text-base font-semibold text-primary-foreground cursor-not-allowed"
+                className="mt-4 w-full rounded-lg bg-primary/50 py-3 text-base font-semibold text-primary-foreground cursor-not-allowed"
               >
-                Minimum 0.7 USDC
+                Minimum $0.10 USDC
               </button>
             )}
           </div>

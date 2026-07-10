@@ -1,0 +1,19 @@
+{
+  "name": "names-x402-cf-worker",
+  "version": "1.0.0",
+  "description": "Paid agent API on Base via x402 V2 — USDC settles to b0x402 treasury",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "tail": "wrangler tail"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.10.0"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "license": "MIT"
+}
