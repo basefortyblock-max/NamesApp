@@ -2,14 +2,14 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Search, Filter, CheckCircle2, ArrowRight, BookOpen } from "lucide-react"
+import { Search, Filter, CheckCircle2, BookOpen } from "lucide-react"
 
 interface Story {
   id: string
   username: string
   platform: string
-  price: number
-  verified: boolean
+  tipsTotal: number
+  tipsCount: number
   createdAt: string
   address: string
 }
@@ -19,127 +19,112 @@ export default function ExplorePage() {
   const [stories, setStories] = useState<Story[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
-  const [filterVerified, setFilterVerified] = useState(false)
+  const [platform, setPlatform] = useState<string>("all")
 
   useEffect(() => {
     fetchStories()
   }, [])
 
   async function fetchStories() {
+    setLoading(true)
     try {
-      const response = await fetch('/api/stories')
-      const data = await response.json()
+      const qs = platform !== "all" ? `?platform=${platform}` : ""
+      const res = await fetch(`/api/stories${qs}`)
+      const data = await res.json()
       setStories(data.stories || [])
-    } catch (error) {
-      console.error('Failed to fetch stories:', error)
+    } catch (e) {
+      console.error(e)
     } finally {
       setLoading(false)
     }
   }
 
-  const filtered = stories.filter(s => {
-    const matchSearch =
-      s.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      s.platform.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchFilter = !filterVerified || s.verified
-    return matchSearch && matchFilter
-  })
+  useEffect(() => {
+    fetchStories()
+  }, [platform])
 
-  if (loading) {
+  const filtered = stories.filter((s) => {
+    if (!searchTerm) return true
+    const q = searchTerm.toLowerCase()
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full" />
-      </div>
+      s.username.toLowerCase().includes(q) ||
+      s.platform.toLowerCase().includes(q)
     )
-  }
+  })
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-6">
-      <h1 className="text-xl font-bold text-foreground">Explore Usernames</h1>
-      <p className="mt-1 text-base text-muted-foreground">
-        Discover usernames and their philosophies
+      <h1 className="text-2xl font-bold">Explore</h1>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Browse and search usernames across platforms.
       </p>
 
-      {/* Search & Filter */}
       <div className="mt-6 flex gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <input
-            type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search by username or platform..."
-            className="w-full rounded-lg border border-input bg-card pl-10 pr-3 py-2.5 text-sm text-foreground outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            placeholder="Search username or platform..."
+            className="w-full rounded-lg border border-input bg-card pl-10 pr-3 py-2.5 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
           />
         </div>
-        <button
-          onClick={() => setFilterVerified(!filterVerified)}
-          className={`flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors ${
-            filterVerified
-              ? 'border-primary bg-primary/10 text-primary'
-              : 'border-border bg-card text-foreground hover:border-primary/40'
-          }`}
+        <select
+          value={platform}
+          onChange={(e) => setPlatform(e.target.value)}
+          className="rounded-lg border border-input bg-card px-3 py-2.5 text-sm"
         >
-          <Filter className="h-4 w-4" />
-          Verified Only
-        </button>
+          <option value="all">All platforms</option>
+          <option value="base">Base</option>
+          <option value="farcaster">Farcaster</option>
+          <option value="zora">Zora</option>
+          <option value="twitter">Twitter (X)</option>
+          <option value="instagram">Instagram</option>
+          <option value="tiktok">TikTok</option>
+          <option value="facebook">Facebook</option>
+          <option value="other">Other</option>
+        </select>
       </div>
 
-      {/* Results */}
       <div className="mt-6">
-        <p className="text-sm text-muted-foreground mb-4">
-          {filtered.length} username{filtered.length !== 1 ? 's' : ''} found
+        <p className="text-xs text-muted-foreground mb-3">
+          {filtered.length} result{filtered.length !== 1 ? "s" : ""}
         </p>
-
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="flex justify-center py-12">
+            <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="rounded-xl border border-border bg-card p-12 text-center">
-            <BookOpen className="mx-auto h-10 w-10 text-muted-foreground mb-3" />
+            <BookOpen className="mx-auto h-8 w-8 text-muted-foreground mb-3" />
             <p className="text-sm text-muted-foreground">
-              {searchTerm ? 'No usernames match your search' : 'No usernames published yet'}
+              {searchTerm || platform !== "all"
+                ? "No matches"
+                : "No stories yet"}
             </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 gap-3">
             {filtered.map((story) => (
-              <div
+              <button
                 key={story.id}
-                className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary/40 transition-colors"
+                onClick={() => router.push(`/u/${story.username}`)}
+                className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 hover:border-primary/40 transition-colors text-left"
               >
-                {/* Avatar */}
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 shrink-0">
                   <span className="text-base font-bold text-primary">
                     {story.username.charAt(0).toUpperCase()}
                   </span>
                 </div>
-
-                {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-foreground truncate">
-                      @{story.username}
-                    </p>
-                    {story.verified && (
-                      <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-muted-foreground">{story.platform}</span>
-                    <span className="text-xs text-muted-foreground">•</span>
-                    <span className="text-xs font-semibold text-primary">
-                      {story.price.toFixed(2)} USDC
-                    </span>
-                  </div>
+                  <p className="text-base font-semibold truncate">
+                    @{story.username}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {story.platform} • {story.tipsCount} tips • ${story.tipsTotal.toFixed(2)}
+                  </p>
                 </div>
-
-                {/* ✅ Read button removed — only Pair action remains */}
-                <button
-                  onClick={() => router.push(`/pair?user=${story.address}`)}
-                  className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90 transition-colors shrink-0"
-                >
-                  Pair
-                  <ArrowRight className="h-3.5 w-3.5" />
-                </button>
-              </div>
+              </button>
             ))}
           </div>
         )}

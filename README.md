@@ -1,251 +1,110 @@
-# Names App - Philosophy Behind Your Username
+# Names × x402 — v2.0
 
-**Share, earn, and trade username philosophies on Base**
+**Names app for the agent era.** Publish short philosophies about your
+username, tip creators in USDC on Base, and let AI agents discover you via
+x402-compatible endpoints.
 
----
+## What's new in v2
 
-## 🎯 What is Names?
+- ❌ Removed: NFT pairing, smart contract mint/trade, paymaster gasless sponsor
+- ❌ Removed: oauth/multi-platform verification stubs, dead wallet endpoints
+- ❌ Removed: tip-by-appreciation with 5% price-increment (jadul model)
+- ✅ **x402 V2 agent endpoints** — paid USDC API for AI agents
+- ✅ Simplified data model: User + Story + Tip (was 8 tables, now 3)
+- ✅ Direct USDC tip flow (user pays gas, ~$0.001 ETH)
+- ✅ Public agent discovery at `/.well-known/agents.md`
 
-Names is a decentralized application on Base L2 where **usernames become valuable digital assets**. Share the philosophical story behind your username, receive USDC appreciation, pair usernames into tradeable NFTs, and trade them on-chain.
+## Stack
 
-### Core Features
+- Frontend: Next.js 16, React 19, Wagmi v2, OnchainKit, RainbowKit
+- Backend: Next.js API routes + PostgreSQL (Prisma 7)
+- Smart contract: NONE — full peer-to-peer philosophy
+- Wallet: Coinbase Smart Wallet (Base native), MetaMask
+- x402 endpoints: Cloudflare Worker (`names-x402.mulberry-boar.workers.dev`)
 
-✨ **Write** — Publish the philosophy behind your username (max 490 words)  
-💰 **Earn** — Receive USDC appreciation from readers (gasless for them!)  
-🔗 **Pair** — Combine usernames into unique NFT assets  
-📈 **Trade** — Buy and sell paired username NFTs
+## User flows
 
----
+### Publish
 
-## 🚀 Quick Start
+1. Connect wallet → /write
+2. Type username + platform + philosophy (1-490 words)
+3. Sign one verification message
+4. Published. Listed on feed by total tips.
 
-### For Users
+### Tip (human or AI)
 
-1. **Visit**: https://names-app-seven.vercel.app
-2. **Connect Wallet**: MetaMask, Coinbase Wallet, or WalletConnect
-3. **Write**: Share your username philosophy
-4. **Earn**: Receive appreciation from readers
+1. Reader opens /u/[username]
+2. Click "Tip"
+3. Enter amount (min $0.10 USDC; suggested \$0.10/\$0.50/\$1/\$5)
+4. Sign USDC transfer on Base
+5. Tip TX hash recorded in DB; story's tipsCount + tipsTotal +1
 
-### For Developers
+### Discover (by AI agent)
+
+```
+GET https://names-x402.mulberry-boar.workers.dev/agent/story?username=foo
+→ 402 invoice → pay $0.005 USDC → JSON story data
+```
+
+See `/.well-known/agents.md` for full endpoint list.
+
+## Routes (UI)
+
+| Path | Description |
+|------|-------------|
+| `/` | Feed — top stories by tips |
+| `/u/[username]` | Public profile |
+| `/write` | Publish your story |
+| `/explore` | Search |
+| `/about` | About page |
+
+## Routes (API)
+
+| Path | Description |
+|------|-------------|
+| `GET  /api/stories?sort=tips|recent&platform=...` | Feed listing |
+| `POST /api/stories` | Publish a philosophy |
+| `GET  /api/stories/[id]` | Single story |
+| `POST /api/stories/[id]/tip` | Record onchain tip |
+| `GET  /api/stories/[id]/tip` | Recent tips list |
+
+## x402 endpoints (CF Worker)
+
+| Path | Cost | Description |
+|------|------|-------------|
+| `GET  /agent/story` | $0.005 | username → story |
+| `GET  /agent/wallet` | $0.010 | wallet → stories |
+| `GET  /agent/search` | $0.002 | search |
+| `POST /agent/publish` | $0.500 | submit philosophy |
+
+All settle USDC on Base (chain 8453) to the b0x402 treasury.
+
+## Local development
 
 ```bash
-# Clone repository
-git clone https://github.com/basefortyblock-max/NamesApp.git
-cd NamesApp
-
-# Install dependencies
-npm install
-
-# Set up environment variables
+pnpm install
 cp .env.example .env.local
-# Edit .env.local with your credentials
-
-# Set up database
-npx prisma generate
-npx prisma db push
-
-# Run development server
-npm run dev
+# Edit DATABASE_URL, NEXT_PUBLIC_BASE_URL
+pnpm dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+## Deploy
 
----
+Vercel auto-deploys on push. Set these env vars in Vercel:
 
-## 📝 How It Works
+- `DATABASE_URL`
+- `NEXT_PUBLIC_BASE_URL`
+- `NEXT_PUBLIC_USERNAME_NFT_CONTRACT` (legacy, unused)
+- frame/og config defaults inline
 
-### 1. Write Your Philosophy
+CF Worker `names-x402` deploys independently — see `cf-worker-names-x402/`.
 
-```
-Connect Wallet → Enter Username → Sign Message → Write Story (490 words max) → Publish
-```
+## Migration from v1
 
-- **One wallet, unlimited usernames**: Publish stories for multiple usernames
-- **Wallet verification**: Simple signature verification (no platform-specific OAuth)
-- **Permanent publication**: Stories cannot be deleted once published
-- **Base price**: All stories start at 0.7 USDC
+Existing v1 stories + users remain operational on the Vercel instance until
+admin chooses to run `prisma migrate deploy` after backup. v2 schema is
+**breaking**: v1 StoryValue/Tip/Receipt data is not migrated.
 
-### 2. Receive Appreciation
+## License
 
-```
-Reader discovers story → Sends USDC (min 0.7) → No gas fees (Paymaster) → You earn!
-```
-
-- **Gasless for readers**: Coinbase CDP Paymaster sponsors transactions
-- **Direct payments**: USDC goes straight to your wallet
-- **Price appreciation**: Story value increases by 5% of each appreciation
-- **No platform fee**: 100% of appreciation goes to you
-
-### 3. Pair Usernames
-
-```
-Select 2 usernames → Review disclaimer → Mint NFT → Choose: Write Story OR Trade
-```
-
-**Self-Pairing**: Combine 2 of your own usernames  
-**Cross-Pairing**: Pair with another user's username (consent required)
-
-- **You pay gas**: Smart contract minting requires gas fees
-- **Enable/Disable**: Toggle whether others can pair with your username
-- **Disclaimer**: Important legal notice before minting
-- **NFT Format**: username1×username2 (e.g., "SatoshiDreamer×CryptoPoet")
-
-### 4. Trade NFTs
-
-```
-List NFT → Set Price → Buyer purchases → 1% fee to treasury → Profit!
-```
-
-- **Base price**: 0.7 USDC minimum
-- **Price discovery**: Free market determines value
-- **Trading pairs**: USERNAME/USDC format
----
-
-## 🏗️ Architecture
-
-### Tech Stack
-
-- **Frontend**: Next.js 16, React 19, TypeScript, Tailwind CSS
-- **Wallet**: RainbowKit (Coinbase), wagmi v2, viem
-- **Blockchain**: Base L2 (Ethereum)
-- **Smart Contracts**: Solidity, ERC-721 (NFT)
-- **Database**: PostgreSQL, Prisma ORM
-- **Gasless**: Coinbase CDP Paymaster
-- **Deployment**: Vercel (frontend), Base (contracts)
-
-### Smart Contracts
-
-**UsernameNFT** (ERC-721):
-- Mint paired username NFTs
-- Transfer ownership
-- Query metadata
-
-**Trading**:
-- List NFTs for sale
-- Execute trades
-
-**Deployed Contracts**:
-- Mainnet: 0xD3F182486C011463446452Bc32d30B965921C521
-
----
-
-## 💰 Economic Model
-
-### Revenue for Creators
-
-| Action | Revenue | Fee |
-|--------|---------|-----|
-| Story Appreciation | 100% to creator | 0% |
-| NFT Minting | 99% to creator | 1% to treasury |
-| NFT Trading | 99% to seller | 1% to treasury |
-
-### Gasless Transactions
-
-- **Send Appreciation**: ✅ Gasless (sponsored by Paymaster)
-- **Publish Story**: ✅ Gasless (on-chain storage minimal)
-- **Mint NFT**: ❌ User pays gas (smart contract interaction)
-- **Trade NFT**: ❌ User pays gas (smart contract interaction)
-
----
-
-## 🛡️ Security
-
-### Smart Contract Security
-- OpenZeppelin libraries (battle-tested)
-- Reentrancy guards
-- Access control
-- Pausable contracts
-- Audit planned before mainnet launch
-
-### User Protection
-- **Disclaimer before minting**: Users acknowledge risks
-- **Consent mechanism**: Cross-pairing requires opt-in
-- **No private keys stored**: Self-custody wallets only
-- **Transaction previews**: Clear warnings before signing
-
-### Legal Disclaimers
-
-> ⚠️ **Important**: Paired usernames are for entertainment and trading purposes. Not affiliated with any platform. Users are responsible for ensuring they don't infringe trademarks or copyrights.
-
----
-
-## 📖 Documentation
-
-- **Whitepaper**: [WHITEPAPER.md](./WHITEPAPER.md)
-
----
-
-## 🗺️ Roadmap
-
-### ✅ Phase 1: MVP (Current)
-- Write and publish username stories
-- Send USDC appreciation (gasless)
-- Pair usernames (self + cross)
-- Mini trading terminal
-
-### 🔄 Phase 2: Growth (Q2 2026)
-- Enhanced trading features
-- User profiles and reputation
-- Leaderboards
-- Mobile-responsive improvements
-- Smart contract audit
-
-### 📅 Phase 3: Community (Q3 2026)
-- Community governance (DAO)
-- Report and moderation system
-- Collections and curation
-- Referral rewards
-- Analytics dashboard
-
-### 🎯 Phase 4: Expansion (Q4 2026)
-- Cross-chain support
-- API for third-party integrations
-- Username verification badges
-- Social features
-- Mobile app (iOS, Android)
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-MIT License - see [LICENSE](./LICENSE) file for details
-
----
-
-## 🙏 Acknowledgments
-
-Built on:
-- [Base](https://base.org) by Coinbase
-- [OnchainKit](https://onchainkit.xyz)
-- [OpenZeppelin](https://openzeppelin.com)
-- [Next.js](https://nextjs.org) by Vercel
-- [Prisma](https://prisma.io)
-
-Special thanks to the Base community for support and feedback.
-
----
-
-## 📞 Support
-
-- **Website**: https://names-app-seven.vercel.app
-- **GitHub Issues**: [Report a bug](https://github.com/basefortyblock-max/NamesApp/issues)
-- **Twitter**: [@fortycrypto](https://twitter.com/fortycrypto)
-- **Discord**: Coming soon
-
----
-
-**Start sharing your username philosophy today! 🎭**
-
-Connect → Verify → Write → Earn → Trade
+MIT — inherited from v1.

@@ -1,10 +1,9 @@
 // app/api/stories/[id]/route.ts
-//
-// GET single story by id — fixes 404 when clicking "Read" from Explore page.
-// app/story/[id]/page.tsx calls this endpoint to fetch story data.
+// GET single story by id (used by agent/webhook integrations — humans use /u/[username]).
+// note: writes now use /api/stories/[id]/tip — kept ONLY for backward compat / agent lookups.
 
-import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { NextRequest, NextResponse } from "next/server"
+import { prisma } from "@/lib/prisma"
 
 export async function GET(
   request: NextRequest,
@@ -12,35 +11,32 @@ export async function GET(
 ) {
   try {
     const { id } = await params
-
     const story = await prisma.story.findUnique({
       where: { id },
       include: {
-        user: { select: { address: true } },
+        user: { select: { address: true, basename: true } },
       },
     })
 
     if (!story) {
-      return NextResponse.json({ error: 'Story not found' }, { status: 404 })
+      return NextResponse.json({ error: "Story not found" }, { status: 404 })
     }
 
     return NextResponse.json({
       story: {
         id: story.id,
-        userId: story.userId,
         username: story.username,
         platform: story.platform,
-        story: story.story,
-        price: story.price,
-        likes: story.likes,
-        shares: story.shares,
-        verified: story.verified,
+        philosophy: story.philosophy,
+        tipsCount: story.tipsCount,
+        tipsTotal: story.tipsTotal,
+        lastTipAt: story.lastTipAt,
         createdAt: story.createdAt,
-        address: story.address || story.user?.address || '',
+        address: story.address || story.user.address || "",
       },
     })
-  } catch (error: any) {
-    console.error('Get story error:', error)
-    return NextResponse.json({ error: 'Failed to fetch story' }, { status: 500 })
+  } catch (e) {
+    console.error("get story:", e)
+    return NextResponse.json({ error: "Failed" }, { status: 500 })
   }
 }

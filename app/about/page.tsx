@@ -4,12 +4,11 @@ import Link from "next/link"
 import {
   PenSquare,
   Search,
-  CheckCircle2,
+  Heart,
   BookOpen,
   DollarSign,
-  Zap,
+  Sparkles,
   Globe,
-  Users,
   ArrowRight,
   Shield,
 } from "lucide-react"
@@ -21,25 +20,25 @@ const WHY_REASONS = [
     icon: BookOpen,
     title: "Your Name Has a Story",
     description:
-      "Every username carries history, meaning, and a noble purpose for its owner. These names represent who we are in the digital world, especially in the Base ecosystem.",
+      "Every username carries history, meaning, or a purpose. Names lets you share what yours is about.",
   },
   {
     icon: Globe,
-    title: "Build on Base",
+    title: "Built for the Agent Era",
     description:
-      "At Base, we move, create, and build channels that generate income from an inexhaustible source. From one or two words that represent a person: you, and all of us at Base.",
+      "Names speaks x402 — AI agents pay tiny USDC amounts to read profiles. No accounts, no OAuth, no paywalls.",
   },
   {
     icon: DollarSign,
-    title: "Earn From Your Philosophy",
+    title: "Earn From What You Care About",
     description:
-      "When others value the story behind your name, you earn USDC. The more your philosophy resonates, the higher the price grows organically.",
+      "Readers tip directly in USDC. No platform fee. Tips are onchain — same wallet, same receipt, no middleman.",
   },
   {
-    icon: Users,
-    title: "Connect With Others",
+    icon: Sparkles,
+    title: "Discovered Where It Counts",
     description:
-      "Discover the philosophy behind other usernames. Build meaningful connections through shared stories.",
+      "Top stories rise on the feed. AI agents cite yours in their answers. Your username becomes valuable.",
   },
 ]
 
@@ -47,53 +46,30 @@ const HOW_STEPS = [
   {
     step: "01",
     icon: PenSquare,
-    title: "Type Your Username",
+    title: "Write Your Philosophy",
     description:
-      "Enter the username you'd like to share your philosophy with. This can be your Base account, Farcaster, or any username you like, or you can create your own.",
+      "Type your username and the story behind it. Up to 490 words. Hit publish.",
   },
   {
     step: "02",
-    icon: Search,
-    title: "Automatic Detection & Verification",
+    icon: Shield,
+    title: "Sign with Your Wallet",
     description:
-      "The app automatically detects and verifies your Base profile. This ensures authenticity and links your story to your on-chain identity.",
+      "One signature proves ownership. No account to create, no email to verify.",
   },
   {
     step: "03",
-    icon: BookOpen,
-    title: "Write Your Philosophy",
+    icon: Heart,
+    title: "Receive USDC Tips",
     description:
-      "Write the philosophical or charismatic story behind your username. Is it historical? Brings good luck? Blessings? Health? Tell the world in any language.",
+      "Anyone — human or AI agent — can tip through your profile. Tips land in your wallet directly.",
   },
   {
     step: "04",
-    icon: DollarSign,
-    title: "Earn USDC",
-    description:
-      "Your story starts at 0.7 USDC. When others appreciate and value your philosophy, the price increases.",
-  },
-]
-
-const KEY_FEATURES = [
-  {
-    icon: Zap,
-    title: "Gasless Transactions",
-    description: "When you send USDC as a token of appreciation to a story creator, there is no gas fee for you.",
-  },
-  {
-    icon: DollarSign,
-    title: "Minimum 0.7 USDC",
-    description: "The minimum price is the automatic selling price of your story the first time another user appreciates it."
-  },
-  {
-    icon: Shield,
-    title: "Withdraw at $1",
-    description: "An accumulated balance of $1 can be withdrawn to your main wallet.",
-  },
-  {
     icon: Globe,
-    title: "Multilingual",
-    description: "Write stories in your own language. Multilingual options based on location.",
+    title: "Get Found by Agents",
+    description:
+      "We expose profile data via x402 endpoints. AI agents pay $0.005 USDC to look up your username.",
   },
 ]
 
@@ -101,98 +77,77 @@ export default function AboutPage() {
   const { isConnected } = useAccount()
 
   return (
-    <div className="mx-auto max-w-2xl">
-      {/* Hero */}
-      <section className="px-4 py-8 text-center">
+    <div className="mx-auto max-w-2xl px-4 py-8">
+      <section className="py-6 text-center">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary">
-          <span className="text-2xl font-bold text-primary-foreground">N</span>
+          <Sparkles className="h-8 w-8 text-primary-foreground" />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight text-foreground text-balance">
-          The Charismatic Philosophy Behind Your Username
+        <h1 className="text-3xl font-bold tracking-tight text-balance">
+          Names × x402
         </h1>
-        <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted-foreground text-pretty">
-          Names App represent the philosophy of your username, whether it's Base, Farcaster, Zora.
+        <p className="mx-auto mt-3 max-w-md text-base leading-relaxed text-muted-foreground">
+          Share the story behind your username. Earn USDC when humans and AI
+          agents find it valuable.
         </p>
       </section>
 
-      {/* Why Names */}
-      <section className="px-4 py-6">
-        <h2 className="text-lg font-bold text-foreground">Why Names?</h2>
-        <p className="mt-1 text-base text-muted-foreground">
-          Tell the world why you chose that name. Is it historical, brings good luck, brings
-          blessings, health, or many other reasons?
-        </p>
+      <section className="py-6">
+        <h2 className="text-lg font-bold">Why Names?</h2>
         <div className="mt-5 flex flex-col gap-4">
-          {WHY_REASONS.map((reason) => (
-            <div key={reason.title} className="flex gap-3 rounded-xl border border-border bg-card p-4">
+          {WHY_REASONS.map((r) => (
+            <div
+              key={r.title}
+              className="flex gap-3 rounded-xl border border-border bg-card p-4"
+            >
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10">
-                <reason.icon className="h-5 w-5 text-primary" />
+                <r.icon className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <h3 className="text-base font-semibold text-foreground">{reason.title}</h3>
-                <p className="mt-1 text-base leading-relaxed text-muted-foreground">{reason.description}</p>
+                <h3 className="font-semibold">{r.title}</h3>
+                <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+                  {r.description}
+                </p>
               </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* How It Works */}
-      <section className="px-4 py-6">
-        <h2 className="text-lg font-bold text-foreground">How It Works</h2>
-        <p className="mt-1 text-base text-muted-foreground">
-          Four simple steps to share and earn from your name philosophy.
-        </p>
+      <section className="py-6">
+        <h2 className="text-lg font-bold">How It Works</h2>
         <div className="mt-5 flex flex-col gap-5">
           {HOW_STEPS.map((item) => (
             <div key={item.step} className="flex gap-4">
-              <div className="flex flex-col items-center">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-base font-bold text-primary-foreground">
-                  {item.step}
-                </div>
-                {item.step !== "04" && <div className="mt-1 h-full w-px bg-border" />}
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-base font-bold text-primary-foreground">
+                {item.step}
               </div>
-              <div className="pb-4">
+              <div>
                 <div className="flex items-center gap-2">
                   <item.icon className="h-4 w-4 text-primary" />
-                  <h3 className="text-base font-semibold text-foreground">{item.title}</h3>
+                  <h3 className="font-semibold">{item.title}</h3>
                 </div>
-                <p className="mt-1 text-base leading-relaxed text-muted-foreground">{item.description}</p>
+                <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  {item.description}
+                </p>
               </div>
             </div>
           ))}
         </div>
       </section>
 
-      {/* Key Features */}
-      <section className="px-4 py-6">
-        <h2 className="text-lg font-bold text-foreground">Key Features</h2>
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          {KEY_FEATURES.map((feature) => (
-            <div key={feature.title} className="rounded-xl border border-border bg-card p-3">
-              <feature.icon className="h-5 w-5 text-primary" />
-              <h3 className="mt-3 text-base font-semibold text-foreground">{feature.title}</h3>
-              <p className="mt-2 text-base leading-relaxed text-muted-foreground">{feature.description}</p>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* CTA - sudah di-fix pakai OnchainKit */}
-      <section className="px-4 py-8 text-center">
+      <section className="py-8 text-center">
         <div className="rounded-xl bg-primary p-6 text-primary-foreground">
-          <h2 className="text-lg font-bold">Ready to Share Your Story?</h2>
-          <p className="mt-1 text-base text-primary-foreground/80">
-            Connect your wallet and start earning from your name philosophy.
+          <h2 className="text-lg font-bold">Ready to Share?</h2>
+          <p className="mt-1 text-sm text-primary-foreground/85">
+            Connect your wallet to publish your story.
           </p>
-
           <div className="mt-5">
             {isConnected ? (
               <Link
                 href="/write"
                 className="inline-flex items-center gap-2 rounded-full bg-primary-foreground px-6 py-2.5 text-base font-semibold text-primary transition-colors hover:bg-primary-foreground/90"
               >
-                Write Your Story
+                Publish Now
                 <ArrowRight className="h-4 w-4" />
               </Link>
             ) : (

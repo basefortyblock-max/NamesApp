@@ -1,0 +1,17 @@
+name = "names-x402"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+workers_dev = true
+
+[observability]
+enabled = true
+
+# Production secrets (set via `wrangler secret put`):
+#   DATABASE_URL      — same Neon/Postgres v2 backend as Vercel
+#
+# Public vars (build-time, visible in client):
+#   [vars]
+#   PAY_TO            = "0x57EEC52d76A4A78D4562fc2564101A4bD2e3F357"
+#   ASSET             = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+#   NETWORK           = "eip155:8453"
+#   X402_BYPASS       = "true"  ← DELETE for production
