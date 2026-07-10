@@ -46,7 +46,7 @@ export default async function ProfilePage({ params }: PageProps) {
         createdAt: story.createdAt.toISOString(),
         lastTipAt: story.lastTipAt?.toISOString() ?? null,
       }}
-      recentTips={recentTips.map((t) => ({
+      recentTips={recentTips.map((t: (typeof recentTips)[number]) => ({
         from: `${t.from.slice(0, 6)}...${t.from.slice(-4)}`,
         amount: t.amount,
         txHash: t.txHash,

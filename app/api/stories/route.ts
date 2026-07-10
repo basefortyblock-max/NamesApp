@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
       },
     })
 
-    const out = stories.map((s) => ({
+    const out = stories.map((s: (typeof stories)[number]) => ({
       id: s.id,
       username: s.username,
       platform: s.platform,
